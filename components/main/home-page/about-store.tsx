@@ -1,12 +1,20 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { ShieldCheck, Truck, Diamond } from "lucide-react";
-import { useGetGalleryListQuery } from "@/services/gallery.service";
-import { GaleriItem } from "@/types/gallery";
+import { ShieldCheck, Truck, Diamond, Save, Loader2 } from "lucide-react";
+import Swal from "sweetalert2";
+
+// --- IMPORTS SERVICES & TYPES ---
+import {
+  useGetAboutUsListQuery,
+  useCreateAboutUsMutation,
+  useUpdateAboutUsMutation,
+} from "@/services/customize/about/about-us.service";
+import type { AboutUs } from "@/types/customization/about/tentang";
 
 // --- IMPORTS MODE EDIT ---
 import { useEditMode } from "@/hooks/use-edit-mode";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { EditableText, EditableImage } from "@/components/ui/editable";
 import {
   EditableSection,
@@ -14,8 +22,11 @@ import {
 } from "@/components/ui/editable-section";
 import DotdLoader from "@/components/loader/3dot";
 
-const FALLBACK =
-  "https://placehold.co/1600x1200/png?text=Blackboxinc%20Gallery&font=montserrat";
+// --- CONFIG ---
+const BASE_IMAGE_URL =
+  process.env.NEXT_PUBLIC_API_SECOND_URL || "https://api-dev.blackbox.id";
+
+const FALLBACK_IMAGE = "/placeholder.webp";
 
 // =========================================
 // DEFAULT EXPORT (WRAPPER SUSPENSE)
@@ -39,60 +50,185 @@ export default function AboutStore() {
 // =========================================
 function AboutStoreContent() {
   const isEditMode = useEditMode();
+  const { lang } = useLanguage();
   const YEAR = new Date().getFullYear();
 
-  // === 1. BACKGROUND STATE ===
+  // === 1. SETUP CLIENT CODE ===
+  const [clientCode, setClientCode] = useState<string>("");
+  useEffect(() => {
+    const code =
+      typeof window !== "undefined" ? localStorage.getItem("code_client") : "";
+    if (code) setClientCode(code);
+  }, []);
+
+  // === 2. API HOOKS ===
+  const {
+    data: apiResult,
+    isLoading,
+    refetch,
+  } = useGetAboutUsListQuery(
+    { client_code: clientCode, bahasa: lang },
+    { skip: !clientCode }
+  );
+
+  const [createAboutUs, { isLoading: isCreating }] = useCreateAboutUsMutation();
+  const [updateAboutUs, { isLoading: isUpdating }] = useUpdateAboutUsMutation();
+
+  // === 3. LOCAL STATE ===
+  const [localData, setLocalData] = useState<Partial<AboutUs> | null>(null);
+  const [existingId, setExistingId] = useState<number | null>(null);
+
+  // === 4. BACKGROUND STATE ===
   const [bgConfig, setBgConfig] = useState<BackgroundConfig>({
     type: "solid",
     color1: "#ffffff",
   });
 
-  // === 2. TEXT STATE ===
-  const [texts, setTexts] = useState({
-    badge: "Our Commitment",
-    title: "BLACKBOX.INC — Timeless Style, Uncompromised Quality.",
-    description:
-      "We meticulously curate fashion products with high quality standards and timeless design. Our mission is simple: empower you to feel confident every day, effortlessly.",
-    list1: "Guaranteed quality & authenticity",
-    list2: "Fast & secure worldwide shipping",
-    list3: "Curated new arrivals weekly",
-    est: `Est. ${YEAR}`,
-  });
+  // === 5. SYNC DATA API -> LOCAL ===
+  useEffect(() => {
+    if (apiResult?.data?.items && apiResult.data.items.length > 0) {
+      const item = apiResult.data.items[0];
+      setExistingId(item.id);
+      setLocalData(item);
+    } else if (apiResult?.success) {
+      setExistingId(null);
+      setLocalData({
+        judul: "",
+        deskripsi: "",
+        info_judul_1: "",
+        info_judul_2: "",
+        info_judul_3: "",
+        image: null,
+      });
+    }
+  }, [apiResult]);
 
-  const updateText = (key: keyof typeof texts, val: string) => {
-    setTexts((prev) => ({ ...prev, [key]: val }));
+  // === 6. HANDLE SAVE (CREATE / UPDATE) ===
+  const handleSave = async (
+    field: keyof AboutUs,
+    value: string | File | Blob
+  ) => {
+    if (!clientCode || !localData) return;
+
+    // 1. Optimistic Update Local State
+    setLocalData((prev) =>
+      prev
+        ? {
+            ...prev,
+            [field]: value,
+          }
+        : null
+    );
+
+    try {
+      const formData = new FormData();
+      formData.append("client_id", "6");
+      formData.append("bahasa", lang);
+      formData.append("status", "1");
+
+      // Helper untuk mengambil value (Prioritas: Value baru -> Value Local -> Default Strip)
+      const getVal = (key: keyof AboutUs) => {
+        if (key === field) return value; // Value yang sedang diedit
+        return localData[key] ?? "-";
+      };
+
+      // --- MAPPING DATA KE FORMDATA ---
+      formData.append("judul", getVal("judul") as string);
+      formData.append("deskripsi", getVal("deskripsi") as string);
+      formData.append("info_judul_1", getVal("info_judul_1") as string);
+      formData.append("info_judul_2", getVal("info_judul_2") as string);
+      formData.append("info_judul_3", getVal("info_judul_3") as string);
+
+      // Dummy Fields (Required by Backend)
+      formData.append("info_deskripsi_1", "-");
+      formData.append("info_deskripsi_2", "-");
+      formData.append("info_deskripsi_3", "-");
+      formData.append("visi_judul", "Visi");
+      formData.append("visi_deskripsi", "-");
+      formData.append("visi_icon", "-");
+      formData.append("misi_judul", "Misi");
+      formData.append("misi_deskripsi", "-");
+      formData.append("misi_icon", "-");
+
+      // --- HANDLE IMAGE UPLOAD ---
+      // Pastikan value adalah File/Blob. Jika string (URL), jangan di-append ke 'image'
+      const isFileOrBlob = value instanceof File || value instanceof Blob;
+
+      if (field === "image") {
+        if (isFileOrBlob) {
+          console.log("📁 Appending Image File:", value); // Debugging
+          // Pastikan backend menangkap key 'image'
+          formData.append("image", value as Blob);
+        } else {
+          console.warn("⚠️ Value is not a File/Blob, skipping image append");
+        }
+      }
+
+      // Debugging: Lihat isi FormData di Console
+      // for (const pair of formData.entries()) {
+      //   console.log(pair[0] + ', ' + pair[1]);
+      // }
+
+      // --- EKSEKUSI API ---
+      if (!existingId) {
+        // Mode: CREATE
+        await createAboutUs(formData).unwrap();
+        Swal.fire({
+          icon: "success",
+          title: "Profile Created",
+          toast: true,
+          position: "top-end",
+          showConfirmButton: false,
+          timer: 1500,
+        });
+      } else {
+        // Mode: UPDATE
+        await updateAboutUs({ id: existingId, data: formData }).unwrap();
+        Swal.fire({
+          icon: "success",
+          title: "Profile Updated",
+          toast: true,
+          position: "top-end",
+          showConfirmButton: false,
+          timer: 1500,
+        });
+      }
+
+      refetch();
+    } catch (error) {
+      console.error("Save error:", error);
+      Swal.fire("Error", "Gagal menyimpan perubahan", "error");
+    }
   };
 
-  // === 3. IMAGE LOGIC (API + EDITABLE) ===
-  const [displayImage, setDisplayImage] = useState(FALLBACK);
-
-  // Fetch data
-  const { data, isLoading, isError } = useGetGalleryListQuery({
-    page: 1,
-    paginate: 10,
-  });
-
-  // Effect: Update gambar dari API saat data tersedia
-  useEffect(() => {
-    const list: GaleriItem[] = data?.data ?? [];
-    if (list.length > 0) {
-      const sorted = [...list].sort((a, b) => {
-        const tB =
-          new Date(b.created_at ?? b.published_at).getTime() ||
-          new Date().getTime();
-        const tA =
-          new Date(a.created_at ?? a.published_at).getTime() ||
-          new Date().getTime();
-        return tB - tA;
-      });
-
-      const top = sorted[0];
-      const url = typeof top.image === "string" ? top.image : "";
-      if (url) {
-        setDisplayImage(url);
-      }
+  // Helper Image URL
+  const getImageUrl = (source: string | File | Blob | null | undefined) => {
+    if (!source) return FALLBACK_IMAGE;
+    if (source instanceof File || source instanceof Blob) {
+      return URL.createObjectURL(source);
     }
-  }, [data]);
+    if (typeof source === "string") {
+      if (source.startsWith("http") || source.startsWith("data:")) {
+        return source;
+      }
+      return `${BASE_IMAGE_URL}/media/${source}`;
+    }
+    return FALLBACK_IMAGE;
+  };
+
+  // Loading State
+  if (isLoading && !localData) {
+    return (
+      <div className="py-24 flex justify-center">
+        <DotdLoader />
+      </div>
+    );
+  }
+
+  // Error State / No Data
+  if (!localData) return null;
+
+  const isSaving = isCreating || isUpdating;
 
   return (
     <EditableSection
@@ -101,44 +237,55 @@ function AboutStoreContent() {
       onSave={setBgConfig}
       className="relative overflow-hidden"
     >
+      {/* Indikator Saving */}
+      {isEditMode && isSaving && (
+        <div className="absolute top-4 right-4 z-50 flex items-center gap-2 bg-emerald-600/90 text-white text-xs px-3 py-1.5 rounded-full backdrop-blur-sm shadow-md animate-pulse">
+          <Loader2 className="w-3 h-3 animate-spin" />
+          <span>Saving...</span>
+        </div>
+      )}
+
+      {isEditMode && !isSaving && (
+        <div className="absolute top-4 right-4 z-50 flex items-center gap-2 bg-white/20 text-gray-600 text-xs px-3 py-1.5 rounded-full backdrop-blur-sm shadow-sm border border-gray-200">
+          <Save className="w-3 h-3" />
+          <span>Ready to save</span>
+        </div>
+      )}
+
       <div className="container mx-auto py-12 md:px-4 md:py-24">
         <div className="grid items-center gap-12 md:grid-cols-2">
           {/* Kiri: Teks & Value */}
           <div>
             <span className="inline-flex items-center gap-2 rounded-full bg-gray-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-gray-700 ring-1 ring-gray-300">
               <Diamond className="h-3.5 w-3.5 text-black" />
-              <EditableText
-                isEditMode={isEditMode}
-                text={texts.badge}
-                onSave={(v) => updateText("badge", v)}
-                as="span"
-              />
+              <span>Our Commitment</span>
             </span>
 
             <h2 className="mt-4 text-3xl font-extrabold tracking-tight text-black md:text-4xl lg:text-5xl">
               <EditableText
                 isEditMode={isEditMode}
-                text={texts.title}
-                onSave={(v) => updateText("title", v)}
+                text={localData.judul || ""}
+                onSave={(v) => handleSave("judul", v)}
               />
             </h2>
 
-            <EditableText
-              isEditMode={isEditMode}
-              text={texts.description}
-              onSave={(v) => updateText("description", v)}
-              as="p"
-              multiline
-              className="mt-5 text-base text-gray-700 md:text-lg"
-            />
+            <div className="mt-5 text-base text-gray-700 md:text-lg">
+              <EditableText
+                isEditMode={isEditMode}
+                text={localData.deskripsi || ""}
+                onSave={(v) => handleSave("deskripsi", v)}
+                as="p"
+                multiline
+              />
+            </div>
 
             <ul className="mt-8 grid gap-4 text-base font-medium text-black sm:grid-cols-2">
               <li className="flex items-center gap-3">
                 <ShieldCheck className="h-5 w-5 text-black flex-shrink-0" />
                 <EditableText
                   isEditMode={isEditMode}
-                  text={texts.list1}
-                  onSave={(v) => updateText("list1", v)}
+                  text={localData.info_judul_1 || ""}
+                  onSave={(v) => handleSave("info_judul_1", v)}
                   as="span"
                 />
               </li>
@@ -146,8 +293,8 @@ function AboutStoreContent() {
                 <Truck className="h-5 w-5 text-black flex-shrink-0" />
                 <EditableText
                   isEditMode={isEditMode}
-                  text={texts.list2}
-                  onSave={(v) => updateText("list2", v)}
+                  text={localData.info_judul_2 || ""}
+                  onSave={(v) => handleSave("info_judul_2", v)}
                   as="span"
                 />
               </li>
@@ -155,8 +302,8 @@ function AboutStoreContent() {
                 <Diamond className="h-5 w-5 text-black flex-shrink-0" />
                 <EditableText
                   isEditMode={isEditMode}
-                  text={texts.list3}
-                  onSave={(v) => updateText("list3", v)}
+                  text={localData.info_judul_3 || ""}
+                  onSave={(v) => handleSave("info_judul_3", v)}
                   as="span"
                 />
               </li>
@@ -165,13 +312,12 @@ function AboutStoreContent() {
 
           {/* Kanan: Gambar Editable */}
           <div className="relative order-first md:order-last">
-            <div className="overflow-hidden rounded-2xl border-4 border-black shadow-2xl relative h-[380px] md:h-[500px] w-full">
-              {/* Gunakan containerClassName w-full h-full karena parent sudah punya height fixed */}
+            <div className="overflow-hidden rounded-2xl border-4 border-black shadow-2xl relative h-[380px] md:h-[500px] w-full bg-gray-100">
               <EditableImage
                 isEditMode={isEditMode}
-                src={displayImage}
-                onSave={setDisplayImage} // User bisa ganti manual
-                alt="Gallery highlight"
+                src={getImageUrl(localData.image)}
+                onSave={(file) => handleSave("image", file)}
+                alt="About Us Image"
                 fill
                 priority
                 unoptimized
@@ -180,29 +326,12 @@ function AboutStoreContent() {
               />
             </div>
 
-            {/* Overlay kecil */}
+            {/* Overlay kecil (Est Year) */}
             <div className="absolute bottom-4 left-4 rounded-lg bg-white/90 px-4 py-2 text-sm font-semibold text-black shadow-md backdrop-blur-sm">
-              <EditableText
-                isEditMode={isEditMode}
-                text={texts.est}
-                onSave={(v) => updateText("est", v)}
-                as="span"
-              />
+              <span>Est. {YEAR}</span>
             </div>
           </div>
         </div>
-
-        {/* State info sederhana (Hanya muncul jika loading awal dan belum ada gambar) */}
-        {isLoading && displayImage === FALLBACK && (
-          <p className="mt-6 text-center text-sm text-gray-500">
-            Memuat foto terbaru dari galeri...
-          </p>
-        )}
-        {isError && displayImage === FALLBACK && (
-          <p className="mt-6 text-center text-sm text-red-600">
-            Gagal memuat galeri. Menampilkan gambar default.
-          </p>
-        )}
       </div>
     </EditableSection>
   );
