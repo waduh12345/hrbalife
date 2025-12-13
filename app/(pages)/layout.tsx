@@ -7,6 +7,7 @@ import CartSidebar from "@/components/main/product-page/cart-sidebar";
 import ScrollToTopButton from "@/components/ui/scroll-top-button";
 import useCart from "@/hooks/use-cart";
 import clsx from "clsx";
+import { useEffect } from "react";
 
 export default function PagesLayout({
   children,
@@ -15,9 +16,20 @@ export default function PagesLayout({
 }) {
   const { isOpen, close, cartItems, removeItem } = useCart();
   const pathname = usePathname();
-  const isLoginPage = pathname === "/login";
+  const isLoginPage = pathname === "/login" || pathname === "/customize/login";
   const isWisataPage = pathname === "/wisata" || pathname === "/profile";
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("mode") === "edit") {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        window.location.href =
+          "/customize/login?callbackUrl=" +
+          encodeURIComponent(window.location.href);
+      }
+    }
+  }, []);
   return (
     <LanguageProvider>
       <div className="w-full bg-white">

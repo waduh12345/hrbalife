@@ -14,8 +14,42 @@ const baseQuery = fetchBaseQuery({
   },
 });
 
+// Base Second Query (LocalStorage)
+const baseSecondQuery = fetchBaseQuery({
+  baseUrl: process.env.NEXT_PUBLIC_API_SECOND_URL,
+  prepareHeaders: (headers) => {
+    let token = null;
+    if (typeof window !== "undefined") {
+      token = localStorage.getItem("token");
+    }
+
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+
+    headers.set("Accept", "application/json");
+    return headers;
+  },
+});
+
 export const apiSlice = createApi({
   baseQuery: baseQuery,
   tagTypes: ["ProductVariant"] as const,
+  endpoints: () => ({}),
+});
+
+export const apiSecondSlice = createApi({
+  reducerPath: "apiSecond",
+  baseQuery: baseSecondQuery,
+  tagTypes: [
+    "Client",
+    "Hero",
+    "KategoriProduk",
+    "Mengapa",
+    "Produk",
+    "CTA",
+    "AboutUs",
+    "Value",
+  ],
   endpoints: () => ({}),
 });
