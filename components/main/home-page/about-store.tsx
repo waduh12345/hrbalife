@@ -68,7 +68,9 @@ function AboutStoreContent() {
   useEffect(() => {
     // Cek localStorage saat mount
     if (typeof window !== "undefined") {
-      const code = localStorage.getItem("code_client");
+      // const code = localStorage.getItem("code_client");
+      const code =
+        "$2b$10$OQn8T3wDmOw4pDZz.jPC4ONpoheZvpx9eReWIajaggH/aZDkU1koC";
       // Jika code tidak ada, set string kosong atau default agar loading state berhenti
       setClientCode(code || "");
 
@@ -143,7 +145,6 @@ function AboutStoreContent() {
       return;
     }
 
-    // Optimistic Update
     setLocalData((prev) => (prev ? { ...prev, [field]: value } : null));
 
     try {
@@ -165,11 +166,18 @@ function AboutStoreContent() {
       formData.append("info_3", getVal("info_3") as string);
       formData.append("info_4", getVal("info_4") as string);
 
-      if (
-        field === "image" &&
-        (value instanceof File || value instanceof Blob)
-      ) {
-        formData.append("image", value as Blob);
+      if (field === "image") {
+        if (value instanceof File || value instanceof Blob) {
+          console.log("📁 Appending image file:", (value as File).name);
+          formData.append("image", value);
+        } else {
+          console.warn("⚠️ Field is image but value is not File/Blob:", value);
+        }
+      }
+
+      console.log("--- FormData Content ---");
+      for (const pair of formData.entries()) {
+        console.log(pair[0] + ", " + pair[1]);
       }
 
       if (!existingId) {
@@ -235,7 +243,7 @@ function AboutStoreContent() {
         <AlertCircle size={32} />
         <p className="font-semibold">Client Code Not Found</p>
         <p className="text-sm text-gray-500">
-         {` Please set 'code_client' in localStorage`}
+          {` Please set 'code_client' in localStorage`}
         </p>
       </div>
     );

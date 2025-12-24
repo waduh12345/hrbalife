@@ -17,7 +17,7 @@ const baseQuery = fetchBaseQuery({
 // Base Second Query (LocalStorage)
 const baseSecondQuery = fetchBaseQuery({
   baseUrl: process.env.NEXT_PUBLIC_API_SECOND_URL,
-  prepareHeaders: (headers) => {
+  prepareHeaders: (headers, { getState }) => {
     let token = null;
     if (typeof window !== "undefined") {
       token = localStorage.getItem("token");
@@ -26,7 +26,6 @@ const baseSecondQuery = fetchBaseQuery({
     if (token) {
       headers.set("Authorization", `Bearer ${token}`);
     }
-
     headers.set("Accept", "application/json");
     return headers;
   },

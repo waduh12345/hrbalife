@@ -52,7 +52,9 @@ function TestimonialsContent() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const code = localStorage.getItem("code_client");
+      // const code = localStorage.getItem("code_client");
+      const code =
+        "$2b$10$OQn8T3wDmOw4pDZz.jPC4ONpoheZvpx9eReWIajaggH/aZDkU1koC";
       setClientCode(code || "");
       if (!code) {
         console.warn(

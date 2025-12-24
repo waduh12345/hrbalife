@@ -180,12 +180,12 @@ export default function PublicTransaction() {
 
   /** ——— Guest Form State ——— */
   const [guest, setGuest] = useState({
-    address_line_1: "Jl Kebon Kopi",
+    address_line_1: "",
     address_line_2: "",
-    postal_code: "40535",
-    guest_name: "Test Guest",
+    postal_code: "",
+    guest_name: "",
     guest_email: "",
-    guest_phone: "08954058734653",
+    guest_phone: "",
     rajaongkir_province_id: 0,
     rajaongkir_city_id: 0,
     rajaongkir_district_id: 0,
@@ -224,17 +224,6 @@ export default function PublicTransaction() {
   const [shippingCourier, setShippingCourier] = useState<string | null>(null);
   const [shippingMethod, setShippingMethod] =
     useState<ShippingCostOption | null>(null);
-
-  useEffect(() => {
-    setShippingCourier(null);
-    setShippingMethod(null);
-  }, [
-    guest.address_line_1,
-    guest.postal_code,
-    guest.rajaongkir_province_id,
-    guest.rajaongkir_city_id,
-    guest.rajaongkir_district_id,
-  ]);
 
   const {
     data: shippingOptions = [],
@@ -295,6 +284,15 @@ export default function PublicTransaction() {
     useCreatePublicTransactionMutation();
 
   const onCheckout = async () => {
+    if (cartItems.some((it) => !it.inStock)) {
+      await Swal.fire({
+        icon: "error",
+        title: "Stok Habis",
+        text: "Ada produk yang stoknya habis. Mohon hapus dari keranjang.",
+      });
+      return;
+    }
+
     if (
       !guest.address_line_1 ||
       !guest.postal_code ||
@@ -306,8 +304,20 @@ export default function PublicTransaction() {
     ) {
       await Swal.fire({
         icon: "warning",
-        title: "Lengkapi Data",
-        text: "Mohon isi semua field yang wajib.",
+        title: "Data Belum Lengkap",
+        html: `
+        <ul class="text-left text-sm">
+          ${!guest.guest_name ? "<li>- Nama Lengkap belum diisi</li>" : ""}
+          ${!guest.guest_email ? "<li>- Email belum diisi</li>" : ""}
+          ${!guest.guest_phone ? "<li>- No. Telepon belum diisi</li>" : ""}
+          ${!guest.address_line_1 ? "<li>- Alamat belum diisi</li>" : ""}
+          ${!guest.postal_code ? "<li>- Kode Pos belum diisi</li>" : ""}
+          ${!shippingCourier ? "<li>- Kurir belum dipilih</li>" : ""}
+          ${
+            !shippingMethod ? "<li>- Layanan pengiriman belum dipilih</li>" : ""
+          }
+        </ul>
+      `,
       });
       return;
     }
@@ -998,17 +1008,7 @@ export default function PublicTransaction() {
 
               <button
                 onClick={onCheckout}
-                disabled={
-                  isCreating ||
-                  cartItems.some((it) => !it.inStock) ||
-                  !guest.address_line_1 ||
-                  !guest.postal_code ||
-                  !guest.guest_name ||
-                  !guest.guest_email ||
-                  !guest.guest_phone ||
-                  !shippingCourier ||
-                  !shippingMethod
-                }
+                disabled={isCreating}
                 className="w-full bg-[#000000] text-white py-4 rounded-2xl font-semibold hover:bg-[#000000]/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isCreating ? (

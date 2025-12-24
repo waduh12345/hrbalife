@@ -561,80 +561,110 @@ export default function CartPage() {
 
   if (cartItems.length === 0) {
     return (
-      <div className="min-h-screen w-full bg-gradient-to-br from-white to-[#6B6B6B]/10 pt-12">
+      <div className="min-h-screen w-full bg-gradient-to-br from-white to-[#6B6B6B]/10 pt-12 pb-20">
         <div className="container mx-auto px-6 lg:px-12">
-          <div className="max-w-2xl mx-auto text-center py-20">
+          {/* --- EMPTY STATE SECTION --- */}
+          <div className="max-w-2xl mx-auto text-center py-16">
             <div className="w-32 h-32 bg-[#6B6B6B]/10 rounded-full flex items-center justify-center mx-auto mb-8">
               <ShoppingCart className="w-16 h-16 text-[#6B6B6B]" />
             </div>
+
             <h1 className="text-4xl font-bold text-gray-900 mb-4">
               Keranjang Kosong
             </h1>
-            <p className="text-xl text-gray-600 mb-8">
+
+            <p className="text-xl text-gray-600 mb-8 px-4">
               Belum ada produk kreatif di keranjang Anda. Yuk, jelajahi koleksi
               produk ramah lingkungan kami!
             </p>
+
             <a
               href="/product"
-              className="inline-flex bg-[#6B6B6B] text-white px-8 py-4 rounded-2xl font-semibold hover:bg-[#6B6B6B]/90 transition-colors items-center gap-2"
+              className="inline-flex bg-[#6B6B6B] text-white px-8 py-4 rounded-2xl font-semibold hover:bg-[#6B6B6B]/90 transition-colors items-center gap-2 shadow-lg hover:shadow-xl"
             >
               <ArrowLeft className="w-5 h-5" />
               Mulai Berbelanja
             </a>
-            <div className="mt-16">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                Produk Rekomendasi
-              </h2>
-              {isRelLoading && (
-                <div className="text-gray-600 w-full flex items-center justify-center min-h-96">
-                  <DotdLoader />
-                </div>
-              )}
-              {isRelError && (
-                <div className="text-red-600">Gagal memuat rekomendasi.</div>
-              )}
-              {!isRelLoading && !isRelError && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-80">
-                  {relatedProducts.map((product) => (
-                    <div
-                      key={product.id}
-                      className="min-w-80 bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 group"
-                    >
-                      <div className="relative h-48">
-                        <Image
-                          src={product.image}
-                          alt={product.name}
-                          fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                        <button className="absolute top-4 right-4 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-lg hover:bg-white transition-colors">
-                          <Heart className="w-4 h-4 text-gray-600 hover:text-red-500" />
-                        </button>
-                      </div>
-                      <div className="p-6">
-                        <span className="text-sm text-[#6B6B6B] font-medium">
-                          {product.category}
-                        </span>
-                        <h3 className="text-lg font-bold text-gray-900 mt-1 mb-3">
-                          {product.name}
-                        </h3>
-                        <div className="flex items-center gap-2 mb-4">
-                          <div className="flex items-center gap-1">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <Star
-                                key={star}
-                                className={`w-4 h-4 ${
-                                  star <= Math.round(product.rating)
-                                    ? "fill-yellow-400 text-yellow-400"
-                                    : "text-gray-300"
-                                }`}
-                              />
-                            ))}
-                          </div>
-                          <span className="text-sm text-gray-600">
-                            ({product.rating.toFixed(1)})
-                          </span>
+          </div>
+
+          {/* --- RECOMMENDATION SECTION --- */}
+          <div className="mt-12 border-t border-gray-200 pt-12">
+            <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">
+              Produk Rekomendasi
+            </h2>
+
+            {/* Loading State */}
+            {isRelLoading && (
+              <div className="flex w-full items-center justify-center min-h-[300px]">
+                <DotdLoader />
+              </div>
+            )}
+
+            {/* Error State */}
+            {isRelError && (
+              <div className="flex w-full justify-center py-10">
+                <p className="text-red-600 bg-red-50 px-4 py-2 rounded-lg">
+                  Gagal memuat rekomendasi.
+                </p>
+              </div>
+            )}
+
+            {/* Product Grid */}
+            {!isRelLoading && !isRelError && (
+              // PERBAIKAN UTAMA DI SINI: Menambahkan gap dan responsive columns
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+                {relatedProducts.map((product) => (
+                  <div
+                    key={product.id}
+                    className="w-full bg-white rounded-3xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 group flex flex-col"
+                  >
+                    {/* Image Container */}
+                    <div className="relative h-56 w-full bg-gray-100">
+                      <Image
+                        src={product.image}
+                        alt={product.name}
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <button
+                        className="absolute top-4 right-4 p-2.5 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white transition-colors"
+                        aria-label="Add to wishlist"
+                      >
+                        <Heart className="w-5 h-5 text-gray-600 hover:text-red-500 transition-colors" />
+                      </button>
+                    </div>
+
+                    {/* Card Content */}
+                    <div className="p-6 flex flex-col flex-1">
+                      <span className="text-sm text-[#6B6B6B] font-medium uppercase tracking-wide">
+                        {product.category}
+                      </span>
+
+                      <h3 className="text-lg font-bold text-gray-900 mt-1 mb-2 line-clamp-2">
+                        {product.name}
+                      </h3>
+
+                      {/* Rating */}
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="flex items-center gap-0.5">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              className={`w-4 h-4 ${
+                                star <= Math.round(product.rating)
+                                  ? "fill-yellow-400 text-yellow-400"
+                                  : "text-gray-300"
+                              }`}
+                            />
+                          ))}
                         </div>
+                        <span className="text-sm text-gray-500 font-medium">
+                          ({product.rating.toFixed(1)})
+                        </span>
+                      </div>
+
+                      {/* Price & Action - Menggunakan mt-auto agar tombol selalu di bawah */}
+                      <div className="mt-auto">
                         <div className="flex items-center gap-3 mb-4">
                           <span className="text-xl font-bold text-[#6B6B6B]">
                             Rp {product.price.toLocaleString("id-ID")}
@@ -645,21 +675,20 @@ export default function CartPage() {
                             </span>
                           )}
                         </div>
-                        <div className="flex gap-2 bg-[#6B6B6B] rounded-2xl">
-                          <button
-                            onClick={() => addRelatedToCart(product.__raw)}
-                            className="w-full bg-[#6B6B6B] text-white py-3 rounded-2xl font-semibold hover:bg-[#6B6B6B]/90 transition-colors flex items-center justify-center gap-2"
-                          >
-                            <Plus className="w-4 h-4" />
-                            Tambah ke Keranjang
-                          </button>
-                        </div>
+
+                        <button
+                          onClick={() => addRelatedToCart(product.__raw)}
+                          className="w-full bg-[#6B6B6B] text-white py-3.5 rounded-2xl font-semibold hover:bg-[#6B6B6B]/90 transition-all active:scale-95 flex items-center justify-center gap-2"
+                        >
+                          <Plus className="w-5 h-5" />
+                          Tambah ke Keranjang
+                        </button>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1068,7 +1097,7 @@ export default function CartPage() {
                     }
                   }}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Pilih Kurir" />
                   </SelectTrigger>
                   <SelectContent>

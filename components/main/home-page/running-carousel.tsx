@@ -109,7 +109,9 @@ function RunningCarouselContent({
   const [clientCode, setClientCode] = useState<string>("");
   useEffect(() => {
     const code =
-      typeof window !== "undefined" ? localStorage.getItem("code_client") : "";
+      typeof window !== "undefined"
+        ? "$2b$10$OQn8T3wDmOw4pDZz.jPC4ONpoheZvpx9eReWIajaggH/aZDkU1koC"
+        : "";
     if (code) setClientCode(code);
   }, []);
 

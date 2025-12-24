@@ -48,7 +48,7 @@ function LoginContent() {
         // localStorage.setItem("code_client", response.data.code_client);
         localStorage.setItem(
           "code_client",
-          "$2b$10$YhXgOcShXgAahAbg3bElA.PTrNExk/3xeA9M47figAuJjiuE.05o."
+          "$2b$10$OQn8T3wDmOw4pDZz.jPC4ONpoheZvpx9eReWIajaggH/aZDkU1koC"
         );
 
         console.log("✅ Token saved manually in Login Page");
