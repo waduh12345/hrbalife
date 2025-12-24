@@ -189,8 +189,9 @@ export interface CreateTransactionRequest {
   address_line_2?: string;
   postal_code: string;
   payment_type: string;
-  payment_method: PaymentMethod;
+  payment_method?: PaymentMethod;
   payment_channel?: string;
+  voucher?: number[];
   data: Array<{
     shop_id: number;
     details: Array<{

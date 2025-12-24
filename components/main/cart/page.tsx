@@ -19,6 +19,8 @@ import {
   Truck,
   Star,
   Upload,
+  Banknote,
+  ExternalLink,
 } from "lucide-react";
 import { Product } from "@/types/admin/product";
 import { useGetProductListQuery } from "@/services/product.service";
@@ -47,12 +49,15 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useGetUserAddressListQuery } from "@/services/address.service";
 import type { Address } from "@/types/address";
-import { PaymentChannel, PaymentMethod } from "@/types/admin/transaction";
 import { CheckoutDeps } from "@/types/checkout";
 import { useCheckout } from "@/hooks/use-checkout";
+import VariantPickerModal from "@/components/variant-picker-modal";
+import VoucherPicker from "@/components/voucher-picker";
+import type { Voucher } from "@/types/voucher";
 
 const STORAGE_KEY = "cart-storage";
 
+// Definisi Tipe Pembayaran
 type PaymentType = "automatic" | "manual" | "cod";
 
 type StoredCartItem = Product & { quantity: number };
@@ -90,7 +95,6 @@ interface ShippingCostOption {
   etd: string;
 }
 
-// Custom shipping options for COD and International
 const COD_SHIPPING_OPTIONS: ShippingCostOption[] = [
   {
     name: "COD",
@@ -238,17 +242,23 @@ export default function CartPage() {
   const { data: session } = useSession();
   const isLoggedIn = !!session?.user?.email;
 
+  const [variantModalOpen, setVariantModalOpen] = useState(false);
+  const [variantProduct, setVariantProduct] = useState<Product | null>(null);
+
+  const openVariantModal = (p: Product) => {
+    setVariantProduct(p);
+    setVariantModalOpen(true);
+  };
+
   const sessionName = useMemo(() => session?.user?.name ?? "", [session]);
 
   const [cartItems, setCartItems] = useState<CartItemView[]>([]);
-  console.log(cartItems);
-  const [couponCode, setCouponCode] = useState("");
-  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
-  const [paymentType, setPaymentType] = useState<PaymentType>("automatic");
 
-  const [paymentMethod, setPaymentMethod] =
-    useState<PaymentMethod>("bank_transfer");
-  const [paymentChannel, setPaymentChannel] = useState<PaymentChannel>("bca");
+  // Voucher State
+  const [selectedVoucher, setSelectedVoucher] = useState<Voucher | null>(null);
+
+  // State Payment Type (Default Automatic)
+  const [paymentType, setPaymentType] = useState<PaymentType>("automatic");
 
   const [shippingCourier, setShippingCourier] = useState<string | null>(null);
   const [shippingMethod, setShippingMethod] =
@@ -277,6 +287,9 @@ export default function CartPage() {
   const { handleCheckout } = useCheckout();
 
   const onCheckoutClick = async () => {
+    // 🔍 Debugging: Pastikan paymentType benar-benar berubah
+    console.log("SENDING CHECKOUT PAYLOAD. Type:", paymentType);
+
     const deps: CheckoutDeps = {
       sessionEmail: session?.user?.email ?? null,
       shippingCourier,
@@ -292,12 +305,15 @@ export default function CartPage() {
         email: shippingInfo.email,
         address_line_2: shippingInfo.address_line_2,
       },
-      paymentType,
-      paymentMethod,
-      paymentChannel,
-      clearCart,
-    };
+      paymentType: paymentType, // Pastikan ini menggunakan state terbaru
 
+      // Kita set undefined agar backend tidak bingung (payment null untuk manual)
+      paymentMethod: undefined,
+      paymentChannel: undefined,
+
+      clearCart,
+      voucher: selectedVoucher ? [selectedVoucher.id] : [],
+    };
 
     setIsCheckingOut(true);
     setIsSubmitting(true);
@@ -315,21 +331,12 @@ export default function CartPage() {
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const { data: currentUserResp } = useGetCurrentUserQuery();
   const currentUser = useMemo(() => currentUserResp || null, [currentUserResp]);
-  useEffect(() => {
-    console.log(currentUser);
-    // if(session == null){
-    //     router.push("/login"); // tujuan setelah login
-    //     return;
-    // }
-    setIsPhoneValid(validatePhone(shippingInfo.phone));
-  }, [shippingInfo.phone]);
 
   useEffect(() => {
     setIsPhoneValid(validatePhone(shippingInfo.phone));
   }, [shippingInfo.phone]);
 
   useEffect(() => {
-    // wajib valid hanya kalau belum login
     setIsEmailValid(
       isLoggedIn
         ? true
@@ -358,15 +365,6 @@ export default function CartPage() {
       setShippingInfo((prev) => ({ ...prev, fullName: sessionName }));
     }
   }, [sessionName]);
-
-  function getGuestInfo() {
-    try {
-      const raw = localStorage.getItem(GUEST_INFO_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
-  }
 
   useEffect(() => {
     if (didPrefill.current) return;
@@ -404,9 +402,6 @@ export default function CartPage() {
       skip: !shippingInfo.rajaongkir_city_id,
     });
 
-  const [createTransaction] = useCreateTransactionMutation();
-
-  // Custom logic for shipping options
   const getShippingOptions = (): ShippingCostOption[] => {
     if (shippingCourier === "cod") {
       return COD_SHIPPING_OPTIONS;
@@ -416,7 +411,6 @@ export default function CartPage() {
     return apiShippingOptions;
   };
 
-  // Original RTK Query for JNE
   const {
     data: apiShippingOptions = [],
     isLoading: isShippingLoading,
@@ -444,7 +438,6 @@ export default function CartPage() {
 
   const shippingOptions = getShippingOptions();
 
-  // Reset shipping method when options change
   useEffect(() => {
     if (shippingOptions.length > 0) {
       setShippingMethod(shippingOptions[0]);
@@ -453,7 +446,6 @@ export default function CartPage() {
     }
   }, [shippingOptions]);
 
-  // Initial load + listen to changes
   useEffect(() => {
     const sync = () => setCartItems(mapStoredToView(parseStorage()));
     sync();
@@ -492,15 +484,6 @@ export default function CartPage() {
     writeStorage([]);
     setCartItems([]);
   };
-
-  const applyCoupon = () => {
-    if (couponCode.trim().toLowerCase() === "BLACKBOXINC10") {
-      setAppliedCoupon("BLACKBOXINC10");
-      setCouponCode("");
-    }
-  };
-
-  const removeCoupon = () => setAppliedCoupon(null);
 
   const {
     data: relatedResp,
@@ -546,18 +529,27 @@ export default function CartPage() {
     (sum, it) => sum + it.price * it.quantity,
     0
   );
-  const discount =
-    appliedCoupon === "BLACKBOXINC10" ? Math.round(subtotal * 0.1) : 0;
+
+  const discount = useMemo(() => {
+    if (!selectedVoucher) return 0;
+    if (selectedVoucher.type === "fixed") {
+      return Math.min(selectedVoucher.fixed_amount, subtotal);
+    }
+    if (selectedVoucher.type === "percentage") {
+      const amount = (subtotal * selectedVoucher.percentage_amount) / 100;
+      return Math.round(amount);
+    }
+    return 0;
+  }, [selectedVoucher, subtotal]);
 
   const shippingCost = shippingMethod?.cost ?? 0;
 
-  // Calculate COD fee (2% of subtotal when COD is selected)
   const codFee =
     paymentType === "cod"
       ? Math.round((subtotal - discount + shippingCost) * 0.02)
       : 0;
 
-  const total = subtotal - discount + shippingCost + codFee;
+  const total = Math.max(0, subtotal - discount + shippingCost + codFee);
 
   if (cartItems.length === 0) {
     return (
@@ -611,7 +603,6 @@ export default function CartPage() {
 
             {/* Product Grid */}
             {!isRelLoading && !isRelError && (
-              // PERBAIKAN UTAMA DI SINI: Menambahkan gap dan responsive columns
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
                 {relatedProducts.map((product) => (
                   <div
@@ -663,7 +654,7 @@ export default function CartPage() {
                         </span>
                       </div>
 
-                      {/* Price & Action - Menggunakan mt-auto agar tombol selalu di bawah */}
+                      {/* Price & Action */}
                       <div className="mt-auto">
                         <div className="flex items-center gap-3 mb-4">
                           <span className="text-xl font-bold text-[#6B6B6B]">
@@ -677,7 +668,7 @@ export default function CartPage() {
                         </div>
 
                         <button
-                          onClick={() => addRelatedToCart(product.__raw)}
+                          onClick={() => openVariantModal(product.__raw)}
                           className="w-full bg-[#6B6B6B] text-white py-3.5 rounded-2xl font-semibold hover:bg-[#6B6B6B]/90 transition-all active:scale-95 flex items-center justify-center gap-2"
                         >
                           <Plus className="w-5 h-5" />
@@ -691,10 +682,19 @@ export default function CartPage() {
             )}
           </div>
         </div>
+        <VariantPickerModal
+          open={variantModalOpen}
+          product={variantProduct}
+          onClose={() => setVariantModalOpen(false)}
+          onAdded={() => {
+            window.location.reload();
+          }}
+        />
       </div>
     );
   }
 
+  // --- MAIN CONTENT ---
   return (
     <div className="min-h-screen bg-gradient-to-br from-white to-[#DFF19D]/10 pt-12">
       <div className="container mx-auto px-6 lg:px-12 pb-12">
@@ -814,7 +814,6 @@ export default function CartPage() {
                               }
                             }}
                             onBlur={(e) => {
-                              // Ensure quantity is at least 1 when user clicks away
                               const newQty = parseInt(e.target.value, 10);
                               if (isNaN(newQty) || newQty < 1) {
                                 updateQuantity(item.id, 1);
@@ -916,7 +915,6 @@ export default function CartPage() {
                   )}
                 </div>
 
-                {/* === EMAIL (wajib untuk guest) === */}
                 {!isLoggedIn && (
                   <div className="col-span-1 sm:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -962,7 +960,6 @@ export default function CartPage() {
                   />
                 </div>
 
-                {/* === ALAMAT BARIS 2 (opsional) === */}
                 <div className="col-span-1 sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Alamat (Baris 2){" "}
@@ -1090,10 +1087,9 @@ export default function CartPage() {
                     setShippingCourier(val);
                     setShippingMethod(null);
 
-                    // ✅ Jika kurir Luar Negeri, paksa non-COD
+                    // Jika kurir Luar Negeri, ubah ke Automatic jika sebelumnya COD
                     if (val === "international" && paymentType === "cod") {
                       setPaymentType("automatic");
-                      setPaymentMethod("qris");
                     }
                   }}
                 >
@@ -1206,147 +1202,99 @@ export default function CartPage() {
                     Tipe Pembayaran
                   </label>
                   <div className="space-y-2">
-                    <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors hover:bg-neutral-50">
-                      <input
-                        type="radio"
-                        name="payment-type"
-                        value="automatic"
-                        checked={paymentType === "automatic"}
-                        onChange={(e) =>
-                          setPaymentType(e.currentTarget.value as PaymentType)
-                        }
-                        className="form-radio text-[#6B6B6B] h-4 w-4"
-                      />
+                    {/* Menggunakan div dengan onClick agar lebih reliable */}
+                    <div
+                      className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                        paymentType === "automatic"
+                          ? "border-black bg-neutral-50"
+                          : "border-neutral-200 hover:bg-neutral-50"
+                      }`}
+                      onClick={() => setPaymentType("automatic")}
+                    >
+                      <div
+                        className={`h-4 w-4 rounded-full border flex items-center justify-center ${
+                          paymentType === "automatic"
+                            ? "border-black"
+                            : "border-neutral-400"
+                        }`}
+                      >
+                        {paymentType === "automatic" && (
+                          <div className="h-2 w-2 rounded-full bg-black" />
+                        )}
+                      </div>
                       <div>
                         <p className="font-medium">Otomatis</p>
                         <p className="text-sm text-gray-500">
                           Pembayaran online (Gateway)
                         </p>
                       </div>
-                    </label>
-                  </div>
-                </div>
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Metode Pembayaran
-                  </label>
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors hover:bg-neutral-50">
-                      <input
-                        type="radio"
-                        name="payment-method"
-                        value="bank_transfer"
-                        checked={paymentMethod === "bank_transfer"}
-                        onChange={(e) =>
-                          setPaymentMethod(
-                            e.currentTarget.value as PaymentMethod
-                          )
-                        }
-                        className="form-radio text-[#6B6B6B] h-4 w-4"
-                      />
-                      <div>
-                        <p className="font-medium">Bank Transfer</p>
-                        <p className="text-sm text-gray-500">
-                          Transfer ke rekening bank
-                        </p>
-                      </div>
-                    </label>
-                    <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors hover:bg-neutral-50">
-                      <input
-                        type="radio"
-                        name="payment-method"
-                        value="qris"
-                        checked={paymentMethod === "qris"}
-                        onChange={(e) =>
-                          setPaymentMethod(
-                            e.currentTarget.value as PaymentMethod
-                          )
-                        }
-                        className="form-radio text-[#6B6B6B] h-4 w-4"
-                      />
-                      <div>
-                        <p className="font-medium">QRIS</p>
-                        <p className="text-sm text-gray-500">
-                          Pembayaran via QRIS
-                        </p>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-
-                {paymentMethod === "bank_transfer" && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Pilih Bank
-                    </label>
-                    <Select
-                      value={paymentChannel}
-                      onValueChange={(val) =>
-                        setPaymentChannel(val as PaymentChannel)
-                      }
+                    <div
+                      className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                        paymentType === "manual"
+                          ? "border-black bg-neutral-50"
+                          : "border-neutral-200 hover:bg-neutral-50"
+                      }`}
+                      onClick={() => setPaymentType("manual")}
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih Bank" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="bnc">BNC</SelectItem>
-                        <SelectItem value="bjb">BJB</SelectItem>
-                        <SelectItem value="bca">BCA</SelectItem>
-                        <SelectItem value="bni">BNI</SelectItem>
-                        <SelectItem value="bsi">BSI</SelectItem>
-                        <SelectItem value="bss">BSS</SelectItem>
-                        <SelectItem value="cimb">CIMB</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      <div
+                        className={`h-4 w-4 rounded-full border flex items-center justify-center ${
+                          paymentType === "manual"
+                            ? "border-black"
+                            : "border-neutral-400"
+                        }`}
+                      >
+                        {paymentType === "manual" && (
+                          <div className="h-2 w-2 rounded-full bg-black" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-medium">Manual</p>
+                        <p className="text-sm text-gray-500">
+                          Transfer Manual (Konfirmasi Admin)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* INFO PEMBAYARAN: OTOMATIS */}
+                {paymentType === "automatic" && (
+                  <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl flex gap-3">
+                    <div className="mt-0.5">
+                      <ExternalLink className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div className="text-sm text-blue-800">
+                      <p className="font-semibold mb-1">Pembayaran via Doku</p>
+                      <p>
+                        Anda akan diarahkan ke halaman pembayaran aman setelah
+                        menekan tombol Checkout. Tersedia berbagai metode (QRIS,
+                        VA, E-Wallet).
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* INFO PEMBAYARAN: MANUAL */}
+                {paymentType === "manual" && (
+                  <div className="p-3 bg-neutral-100 rounded-lg border border-neutral-200">
+                    <div className="flex items-center gap-2 text-sm text-neutral-700">
+                      <Banknote className="w-4 h-4" />
+                      <span>
+                        Silakan selesaikan pesanan, admin akan menghubungi Anda.
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="bg-white rounded-3xl p-6 shadow-lg hidden">
-              <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <Tag className="w-5 h-5 text-[#6B6B6B]" />
-                Kode Promo
-              </h3>
-              {appliedCoupon ? (
-                <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5 text-green-600" />
-                    <span className="font-semibold text-green-800">
-                      {appliedCoupon}
-                    </span>
-                    <span className="text-sm text-green-600">- 10% Diskon</span>
-                  </div>
-                  <button
-                    onClick={removeCoupon}
-                    className="text-green-600 hover:text-green-800"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
-                <div className="flex gap-3">
-                  <input
-                    type="text"
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value)}
-                    placeholder="Masukkan kode promo"
-                    className="flex-1 px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#6B6B6B] focus:border-transparent"
-                  />
-                  <button
-                    onClick={applyCoupon}
-                    className="px-6 py-3 bg-[#6B6B6B] text-white rounded-2xl font-semibold hover:bg-[#6B6B6B]/90 transition-colors"
-                  >
-                    Pakai
-                  </button>
-                </div>
-              )}
-              <div className="mt-4 text-sm text-gray-600">
-                <p>
-                  💡 Coba kode: <strong>BLACKBOXINC10</strong> untuk diskon 10%
-                </p>
-              </div>
+            <div className="bg-white rounded-3xl p-6 shadow-lg">
+              <VoucherPicker
+                selected={selectedVoucher}
+                onChange={setSelectedVoucher}
+              />
             </div>
 
             <div className="bg-white rounded-3xl p-6 shadow-lg">
@@ -1364,7 +1312,7 @@ export default function CartPage() {
                 </div>
                 {discount > 0 && (
                   <div className="flex justify-between text-green-600">
-                    <span>Diskon Promo</span>
+                    <span>Diskon Voucher</span>
                     <span>- Rp {discount.toLocaleString("id-ID")}</span>
                   </div>
                 )}
@@ -1454,92 +1402,14 @@ export default function CartPage() {
             </div>
           </div>
         </div>
-        {/* <div className="mt-16">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Produk <span className="text-[#6B6B6B]">Rekomendasi</span>
-            </h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">
-              Lengkapi koleksi kreatif si kecil dengan produk pilihan lainnya
-            </p>
-          </div>
-          {isRelLoading && (
-            <div className="text-center text-gray-600">
-              <DotdLoader />
-            </div>
-          )}
-          {isRelError && (
-            <div className="text-center text-red-600">
-              Gagal memuat rekomendasi.
-            </div>
-          )}
-          {!isRelLoading && !isRelError && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {relatedProducts.map((product) => (
-                <div
-                  key={product.id}
-                  className="bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 group"
-                >
-                  <div className="relative h-48">
-                    <Image
-                      src={product.image}
-                      alt={product.name}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <button className="absolute top-4 right-4 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-lg hover:bg-white transition-colors">
-                      <Heart className="w-4 h-4 text-gray-600 hover:text-red-500" />
-                    </button>
-                  </div>
-                  <div className="p-6">
-                    <span className="text-sm text-[#6B6B6B] font-medium">
-                      {product.category}
-                    </span>
-                    <h3 className="text-lg font-bold text-gray-900 mt-1 mb-3">
-                      {product.name}
-                    </h3>
-                    <div className="flex items-center gap-2 mb-4">
-                      <div className="flex items-center gap-1">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <Star
-                            key={star}
-                            className={`w-4 h-4 ${
-                              star <= Math.round(product.rating)
-                                ? "fill-yellow-400 text-yellow-400"
-                                : "text-gray-300"
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      <span className="text-sm text-gray-600">
-                        ({product.rating.toFixed(1)})
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 mb-4">
-                      <span className="text-xl font-bold text-[#6B6B6B]">
-                        Rp {product.price.toLocaleString("id-ID")}
-                      </span>
-                      {product.originalPrice && (
-                        <span className="text-sm text-gray-400 line-through">
-                          Rp {product.originalPrice.toLocaleString("id-ID")}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex gap-2 bg-[#6B6B6B] rounded-2xl">
-                      <button
-                        onClick={() => addRelatedToCart(product.__raw)}
-                        className="w-full bg-black/50 text-white py-3 rounded-2xl font-semibold hover:bg-[#6B6B6B]/90 transition-colors flex items-center justify-center gap-2"
-                      >
-                        <Plus className="w-4 h-4" />
-                        Tambah ke Keranjang
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div> */}
+        <VariantPickerModal
+          open={variantModalOpen}
+          product={variantProduct}
+          onClose={() => setVariantModalOpen(false)}
+          onAdded={() => {
+            window.location.reload();
+          }}
+        />
       </div>
     </div>
   );

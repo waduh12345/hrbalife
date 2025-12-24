@@ -14,13 +14,14 @@ import {
   CreditCard,
   Sparkles,
   Truck,
-  Star,
+  Banknote,
+  ExternalLink,
+  Upload,
+  Shield,
+  Package,
 } from "lucide-react";
 
-import {
-  useCreatePublicTransactionMutation,
-  type CreatePublicTransactionRequest,
-} from "@/services/public-transactions.service";
+// Hapus import mutation manual, ganti dengan hook useCheckout
 import { useCheckShippingCostQuery } from "@/services/auth.service";
 import { useGetProductListQuery } from "@/services/product.service";
 
@@ -31,7 +32,6 @@ import {
 } from "@/services/shop/open-shop/open-shop.service";
 
 import VoucherPicker from "@/components/voucher-picker";
-import PaymentMethod from "@/components/payment-method";
 import type { Voucher } from "@/types/voucher";
 import type { Product } from "@/types/admin/product";
 import { fredoka, sniglet } from "@/lib/fonts";
@@ -48,10 +48,15 @@ import {
 // IMPORT ZUSTAND HOOK
 import useCart from "@/hooks/use-cart";
 
+// IMPORT USE CHECKOUT & TYPES
+import { useCheckout } from "@/hooks/use-checkout"; // Sesuaikan path hook Anda
+import type { CheckoutDeps } from "@/types/checkout";
+
 /** ====== Helpers & Types ====== */
 
 interface CartItemView {
   id: number;
+  product_variant_id: number;
   name: string;
   price: number;
   originalPrice?: number;
@@ -83,12 +88,43 @@ interface ShippingCostOption {
   etd: string;
 }
 
-// Interface for Transaction Response handling
-export interface TransactionResponseData {
-  reference: string;
-  id?: string;
-  payment_link?: string;
-}
+const COD_SHIPPING_OPTIONS: ShippingCostOption[] = [
+  {
+    name: "COD",
+    code: "cod-close",
+    service: "COD Jarak Dekat",
+    description: "Bayar di tempat - area terdekat",
+    cost: 10000,
+    etd: "1-2 hari",
+  },
+  {
+    name: "COD",
+    code: "cod-far",
+    service: "COD Jarak Jauh",
+    description: "Bayar di tempat - area jauh",
+    cost: 25000,
+    etd: "2-3 hari",
+  },
+];
+
+const INTERNATIONAL_SHIPPING_OPTIONS: ShippingCostOption[] = [
+  {
+    name: "International",
+    code: "intl-singapore",
+    service: "Singapura",
+    description: "Pengiriman internasional ke Singapura",
+    cost: 85000,
+    etd: "7-14 hari",
+  },
+  {
+    name: "International",
+    code: "intl-malaysia",
+    service: "Malaysia",
+    description: "Pengiriman internasional ke Malaysia",
+    cost: 85000,
+    etd: "7-14 hari",
+  },
+];
 
 type PaymentType = "automatic" | "manual" | "cod";
 
@@ -104,6 +140,10 @@ function getImageUrlFromProduct(p: Product): string {
 /** ====== Component ====== */
 export default function PublicTransaction() {
   const router = useRouter();
+
+  // --- Init Checkout Hook ---
+  const { handleCheckout } = useCheckout();
+  const [isProcessing, setIsProcessing] = useState(false);
 
   /** ——— Cart Logic (Menggunakan Zustand) ——— */
   const {
@@ -126,7 +166,8 @@ export default function PublicTransaction() {
     if (!isMounted) return [];
     return rawCartItems.map((it) => ({
       id: it.id,
-      product_variant_id: it.product_variant_id ?? 0,
+      product_variant_id:
+        typeof it.product_variant_id === "number" ? it.product_variant_id : 0,
       name: it.name,
       price: it.price,
       originalPrice: undefined,
@@ -191,6 +232,23 @@ export default function PublicTransaction() {
     rajaongkir_district_id: 0,
   });
 
+  // Validation State
+  const [isPhoneValid, setIsPhoneValid] = useState(false);
+  const [isEmailValid, setIsEmailValid] = useState(false);
+
+  const validatePhone = (phone: string) =>
+    /^(?:\+62|62|0)8\d{8,11}$/.test(phone);
+  const validateEmail = (email: string) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  useEffect(() => {
+    setIsPhoneValid(validatePhone(guest.guest_phone));
+  }, [guest.guest_phone]);
+
+  useEffect(() => {
+    setIsEmailValid(validateEmail(guest.guest_email));
+  }, [guest.guest_email]);
+
   /** ——— Regional Data ——— */
   const { data: provinces = [], isLoading: provLoading } =
     useGetProvincesQuery();
@@ -215,18 +273,23 @@ export default function PublicTransaction() {
     setGuest((s) => ({ ...s, rajaongkir_district_id: 0 }));
   }, [guest.rajaongkir_city_id]);
 
-  const canChooseCourier = Boolean(
-    guest.rajaongkir_district_id ||
-      (guest.address_line_1.trim() && guest.postal_code.trim())
-  );
-
   /** ——— Shipping Logic ——— */
   const [shippingCourier, setShippingCourier] = useState<string | null>(null);
   const [shippingMethod, setShippingMethod] =
     useState<ShippingCostOption | null>(null);
 
+  // Logic from CartPage to determine options
+  const getShippingOptions = (): ShippingCostOption[] => {
+    if (shippingCourier === "cod") {
+      return COD_SHIPPING_OPTIONS;
+    } else if (shippingCourier === "international") {
+      return INTERNATIONAL_SHIPPING_OPTIONS;
+    }
+    return apiShippingOptions;
+  };
+
   const {
-    data: shippingOptions = [],
+    data: apiShippingOptions = [],
     isLoading: isShippingLoading,
     isError: isShippingError,
   } = useCheckShippingCostQuery(
@@ -243,29 +306,35 @@ export default function PublicTransaction() {
       courier: shippingCourier ?? "",
     },
     {
-      skip: !canChooseCourier || !shippingCourier,
+      skip:
+        !guest.rajaongkir_district_id ||
+        !shippingCourier ||
+        shippingCourier === "cod" ||
+        shippingCourier === "international",
       refetchOnMountOrArgChange: true,
     }
   );
 
+  const shippingOptions = getShippingOptions();
+
   useEffect(() => {
-    if (!isShippingLoading && shippingOptions.length > 0) {
+    if (shippingOptions.length > 0) {
       setShippingMethod(shippingOptions[0]);
     } else {
       setShippingMethod(null);
     }
-  }, [shippingOptions, isShippingLoading]);
+  }, [shippingOptions]);
 
   /** ——— Payment & Voucher ——— */
   const [selectedVoucher, setSelectedVoucher] = useState<Voucher | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentType>("manual");
+  const [paymentType, setPaymentType] = useState<PaymentType>("manual");
 
   const subtotal = cartItems.reduce(
     (sum, it) => sum + it.price * it.quantity,
     0
   );
 
-  const voucherDiscount = useMemo(() => {
+  const discount = useMemo(() => {
     if (!selectedVoucher) return 0;
     if (selectedVoucher.type === "fixed") {
       const cut = Math.max(0, selectedVoucher.fixed_amount);
@@ -275,15 +344,17 @@ export default function PublicTransaction() {
     return Math.round((subtotal * pct) / 100);
   }, [selectedVoucher, subtotal]);
 
-  const discount = voucherDiscount;
   const shippingCost = shippingMethod?.cost ?? 0;
-  const total = subtotal - discount + shippingCost;
+  const codFee =
+    paymentType === "cod"
+      ? Math.round((subtotal - discount + shippingCost) * 0.02)
+      : 0;
 
-  /** ——— Checkout Action ——— */
-  const [createPublicTransaction, { isLoading: isCreating }] =
-    useCreatePublicTransactionMutation();
+  const total = subtotal - discount + shippingCost + codFee;
 
+  /** ——— Checkout Action (REFACTORED USING useCheckout) ——— */
   const onCheckout = async () => {
+    // 1. Validasi Stock
     if (cartItems.some((it) => !it.inStock)) {
       await Swal.fire({
         icon: "error",
@@ -293,6 +364,7 @@ export default function PublicTransaction() {
       return;
     }
 
+    // 2. Validasi Form Guest
     if (
       !guest.address_line_1 ||
       !guest.postal_code ||
@@ -300,129 +372,54 @@ export default function PublicTransaction() {
       !guest.guest_email ||
       !guest.guest_phone ||
       !shippingCourier ||
-      !shippingMethod
+      !shippingMethod ||
+      !isPhoneValid ||
+      !isEmailValid
     ) {
       await Swal.fire({
         icon: "warning",
         title: "Data Belum Lengkap",
-        html: `
-        <ul class="text-left text-sm">
-          ${!guest.guest_name ? "<li>- Nama Lengkap belum diisi</li>" : ""}
-          ${!guest.guest_email ? "<li>- Email belum diisi</li>" : ""}
-          ${!guest.guest_phone ? "<li>- No. Telepon belum diisi</li>" : ""}
-          ${!guest.address_line_1 ? "<li>- Alamat belum diisi</li>" : ""}
-          ${!guest.postal_code ? "<li>- Kode Pos belum diisi</li>" : ""}
-          ${!shippingCourier ? "<li>- Kurir belum dipilih</li>" : ""}
-          ${
-            !shippingMethod ? "<li>- Layanan pengiriman belum dipilih</li>" : ""
-          }
-        </ul>
-      `,
+        text: "Mohon lengkapi semua data formulir dengan benar.",
       });
       return;
     }
 
-    if (cartItems.length === 0) {
-      await Swal.fire({
-        icon: "info",
-        title: "Keranjang Kosong",
-        text: "Tambahkan produk terlebih dahulu.",
-      });
-      return;
-    }
-
-    const details = rawCartItems.map((item) => ({
-      product_id: item.id,
-      product_variant_id: item.product_variant_id ?? undefined,
-      quantity: item.quantity ?? 1,
-    }));
-
-    const payload: CreatePublicTransactionRequest = {
-      address_line_1: guest.address_line_1,
-      address_line_2: guest.address_line_2 || "",
-      postal_code: guest.postal_code,
-      guest_name: guest.guest_name,
-      guest_email: guest.guest_email,
-      guest_phone: guest.guest_phone,
-      payment_type: paymentMethod,
-      data: [
-        {
-          shop_id: 1,
-          details,
-          shipment: {
-            parameter: JSON.stringify({
-              destination: guest.rajaongkir_district_id
-                ? String(guest.rajaongkir_district_id)
-                : guest.postal_code,
-              weight: 1000,
-              height: 0,
-              length: 0,
-              width: 0,
-              diameter: 0,
-              courier: shippingCourier ?? "",
-            }),
-            shipment_detail: JSON.stringify(shippingMethod),
-            courier: shippingCourier ?? "",
-            cost: shippingMethod.cost,
-          },
-        },
-      ],
-      voucher: selectedVoucher ? [selectedVoucher.id] : undefined,
-    };
+    setIsProcessing(true);
 
     try {
-      const res = await createPublicTransaction(payload).unwrap();
+      // 3. Mapping State Guest UI ke checkout Deps
+      const deps: CheckoutDeps = {
+        sessionEmail: null, // Public transaction = null
+        shippingCourier,
+        shippingMethod,
+        shippingInfo: {
+          // Field Wajib useCheckout yang dimapping dari Guest UI
+          fullName: guest.guest_name,
+          email: guest.guest_email,
+          phone: guest.guest_phone,
+          address_line_1: guest.address_line_1,
+          postal_code: guest.postal_code,
+          // Opsional / Regional
+          address_line_2: guest.address_line_2,
+          rajaongkir_province_id: guest.rajaongkir_province_id,
+          rajaongkir_city_id: guest.rajaongkir_city_id,
+          rajaongkir_district_id: guest.rajaongkir_district_id,
+        },
+        paymentType, // "automatic" | "manual" | "cod"
+        paymentMethod: undefined,
+        paymentChannel: undefined,
+        clearCart,
+        voucher: selectedVoucher ? [selectedVoucher.id] : [],
+      };
 
-      // LOGIKA BARU: Handle respon berdasarkan tipe datanya (string/object)
-      if (res) {
-        // CASE 1: Respon String (Biasanya untuk Manual Payment, String = Encrypted ID)
-        if (typeof res.data === "string") {
-          const encryptedId = res.data;
-
-          await Swal.fire({
-            icon: "success",
-            title: "Pesanan Berhasil Dibuat",
-            text: "Silakan lakukan pembayaran dan upload bukti transfer.",
-            confirmButtonText: "Lanjut",
-          });
-
-          clearCart();
-          // Redirect menggunakan string terenkripsi tersebut
-          router.push(`/transaction/${encryptedId}`);
-        }
-
-        // CASE 2: Respon Object (Biasanya Automatic/Gateway, Object = { payment_link, reference, dll })
-        else if (typeof res.data === "object" && res.data !== null) {
-          const responseData = res.data as unknown as TransactionResponseData;
-
-          if ("payment_link" in responseData && responseData.payment_link) {
-            await Swal.fire({
-              icon: "success",
-              title: "Pesanan Berhasil Dibuat",
-              text: "Kami arahkan ke halaman pembayaran.",
-              confirmButtonText: "Lanjut",
-            });
-            window.open(responseData.payment_link, "_blank");
-            clearCart();
-            router.push(`/cek-order?code=${responseData.reference}`);
-          } else {
-            // Fallback jika object tapi tidak ada link (misal COD)
-            await Swal.fire({
-              icon: "success",
-              title: "Pesanan Berhasil Dibuat",
-              text: "Silakan cek status pesanan Anda.",
-            });
-            clearCart();
-          }
-        }
-      }
+      // 4. Panggil handleCheckout
+      await handleCheckout(deps);
     } catch (e) {
       console.error(e);
-      await Swal.fire({
-        icon: "error",
-        title: "Gagal Membuat Transaksi",
-        text: "Silakan coba lagi.",
-      });
+      // Error handling sudah ada sebagian di dalam useCheckout,
+      // tapi backup di sini jika throw error
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -441,8 +438,7 @@ export default function PublicTransaction() {
               Keranjang Kosong
             </h1>
             <p className="text-xl text-black mb-8">
-              Belum ada produk kreatif di keranjang Anda. Yuk, jelajahi koleksi
-              produk ramah lingkungan kami!
+              Belum ada produk kreatif di keranjang Anda.
             </p>
             <a
               href="/product"
@@ -452,6 +448,7 @@ export default function PublicTransaction() {
               Mulai Berbelanja
             </a>
 
+            {/* Recommendation in Empty State */}
             <div className="mt-16">
               <h2
                 className={`text-2xl font-bold text-black mb-6 ${fredoka.className}`}
@@ -462,9 +459,6 @@ export default function PublicTransaction() {
                 <div className="text-black w-full flex items-center justify-center min-h-96">
                   <DotdLoader />
                 </div>
-              )}
-              {isRelError && (
-                <div className="text-red-600">Gagal memuat rekomendasi.</div>
               )}
               {!isRelLoading && !isRelError && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -480,46 +474,18 @@ export default function PublicTransaction() {
                           fill
                           className="object-cover group-hover:scale-105 transition-transform duration-500"
                         />
-                        <button className="absolute top-4 right-4 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-lg hover:bg-white transition-colors">
-                          <Heart className="w-4 h-4 text-black hover:text-red-500" />
-                        </button>
                       </div>
                       <div className="p-6">
-                        <span className="text-sm text-[#000000] font-medium">
-                          {product.category}
-                        </span>
                         <h3 className="text-lg font-bold text-black mt-1 mb-3">
                           {product.name}
                         </h3>
-                        <div className="flex items-center gap-2 mb-4">
-                          <div className="flex items-center gap-1">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <Star
-                                key={star}
-                                className={`w-4 h-4 ${
-                                  star <= Math.round(product.rating)
-                                    ? "fill-yellow-400 text-yellow-400"
-                                    : "text-gray-300"
-                                }`}
-                              />
-                            ))}
-                          </div>
-                          <span className="text-sm text-black">
-                            ({product.rating.toFixed(1)})
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-3 mb-4">
-                          <span className="text-xl font-bold text-[#000000]">
-                            Rp {product.price.toLocaleString("id-ID")}
-                          </span>
-                        </div>
                         <div className="flex gap-2 bg-[#000000] rounded-2xl">
                           <button
                             onClick={() => addRelatedToCart(product.__raw)}
                             className="w-full bg-[#000000] text-white py-3 rounded-2xl font-semibold hover:bg-[#000000]/90 transition-colors flex items-center justify-center gap-2"
                           >
                             <Plus className="w-4 h-4" />
-                            Tambah ke Keranjang
+                            Tambah
                           </button>
                         </div>
                       </div>
@@ -562,9 +528,6 @@ export default function PublicTransaction() {
             >
               Produk <span className="text-[#000000]">Pilihan Anda</span>
             </h1>
-            <p className="text-black max-w-2xl mx-auto">
-              Selesaikan pesanan tanpa perlu login
-            </p>
           </div>
         </div>
 
@@ -672,11 +635,6 @@ export default function PublicTransaction() {
                               "id-ID"
                             )}
                           </div>
-                          {!item.inStock && (
-                            <div className="text-xs text-red-500">
-                              Tidak tersedia
-                            </div>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -721,6 +679,11 @@ export default function PublicTransaction() {
                     }
                     placeholder="08xxxxxxxxxx"
                   />
+                  {!isPhoneValid && guest.guest_phone && (
+                    <p className="text-sm text-red-500 mt-1">
+                      Nomor telepon tidak valid
+                    </p>
+                  )}
                 </div>
 
                 <div className="col-span-1 sm:col-span-2">
@@ -736,6 +699,11 @@ export default function PublicTransaction() {
                     }
                     placeholder="email@contoh.com"
                   />
+                  {!isEmailValid && guest.guest_email && (
+                    <p className="text-sm text-red-500 mt-1">
+                      Format email tidak valid
+                    </p>
+                  )}
                 </div>
 
                 <div className="col-span-1 sm:col-span-2">
@@ -877,74 +845,107 @@ export default function PublicTransaction() {
                   onValueChange={(val) => {
                     setShippingCourier(val);
                     setShippingMethod(null);
+                    // Reset payment to automatic if international selected while cod
+                    if (val === "international" && paymentType === "cod") {
+                      setPaymentType("automatic");
+                    }
                   }}
-                  disabled={!canChooseCourier}
+                  disabled={!guest.rajaongkir_district_id && !guest.postal_code}
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Pilih Kurir" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="jne">JNE</SelectItem>
-                    <SelectItem value="pos">POS</SelectItem>
-                    <SelectItem value="tiki">TIKI</SelectItem>
+                    <SelectItem value="international">Luar Negeri</SelectItem>
                   </SelectContent>
                 </Select>
-
-                {!canChooseCourier && (
-                  <p className="text-sm text-red-500 mt-1">
-                    Lengkapi kecamatan atau alamat & kode pos untuk memilih
-                    kurir.
-                  </p>
-                )}
               </div>
 
               <div className="space-y-3">
-                {isShippingLoading ? (
-                  <div className="flex justify-center items-center py-4">
-                    <DotdLoader />
-                  </div>
-                ) : isShippingError ? (
-                  <p className="text-center text-red-500">
-                    Gagal memuat opsi pengiriman.
-                  </p>
-                ) : shippingOptions.length > 0 ? (
-                  shippingOptions.map((option, index) => (
-                    <label
-                      key={index}
-                      className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
-                        shippingMethod?.service === option.service
-                          ? "border-[#000000] bg-[#000000]/30"
-                          : "border-gray-200 hover:bg-neutral-50"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="shipping-service"
-                        checked={shippingMethod?.service === option.service}
-                        onChange={() => setShippingMethod(option)}
-                        className="form-radio text-[#000000] h-4 w-4"
-                      />
-                      <div className="flex-1">
-                        <p className="font-medium">{option.service}</p>
-                        <p className="text-sm text-neutral-500">
-                          {option.description}
-                        </p>
-                        <p className="text-sm font-semibold">
-                          Rp {option.cost.toLocaleString("id-ID")}
-                        </p>
-                        <p className="text-xs text-neutral-400">
-                          Estimasi: {option.etd}
-                        </p>
+                {shippingCourier === "jne" && (
+                  <>
+                    {isShippingLoading ? (
+                      <div className="flex justify-center items-center py-4">
+                        <DotdLoader />
                       </div>
-                    </label>
-                  ))
-                ) : (
-                  canChooseCourier &&
-                  shippingCourier && (
-                    <p className="text-center text-gray-500">
-                      Tidak ada opsi pengiriman tersedia.
-                    </p>
-                  )
+                    ) : isShippingError ? (
+                      <p className="text-center text-red-500">
+                        Gagal memuat opsi pengiriman.
+                      </p>
+                    ) : shippingOptions.length > 0 ? (
+                      shippingOptions.map((option, index) => (
+                        <label
+                          key={index}
+                          className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                            shippingMethod?.service === option.service
+                              ? "border-[#000000] bg-[#000000]/10"
+                              : "border-gray-200 hover:bg-neutral-50"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="shipping-service"
+                            checked={shippingMethod?.service === option.service}
+                            onChange={() => setShippingMethod(option)}
+                            className="form-radio text-[#000000] h-4 w-4"
+                          />
+                          <div className="flex-1">
+                            <p className="font-medium">{option.service}</p>
+                            <p className="text-sm text-neutral-500">
+                              {option.description}
+                            </p>
+                            <p className="text-sm font-semibold">
+                              Rp {option.cost.toLocaleString("id-ID")}
+                            </p>
+                            <p className="text-xs text-neutral-400">
+                              Estimasi: {option.etd}
+                            </p>
+                          </div>
+                        </label>
+                      ))
+                    ) : (
+                      <p className="text-center text-gray-500">
+                        Tidak ada opsi pengiriman tersedia.
+                      </p>
+                    )}
+                  </>
+                )}
+
+                {(shippingCourier === "cod" ||
+                  shippingCourier === "international") && (
+                  <>
+                    {shippingOptions.map((option, index) => (
+                      <label
+                        key={index}
+                        className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                          shippingMethod?.code === option.code
+                            ? "border-[#000000] bg-[#000000]/10"
+                            : "border-gray-200 hover:bg-neutral-50"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="shipping-service"
+                          checked={shippingMethod?.code === option.code}
+                          onChange={() => setShippingMethod(option)}
+                          className="form-radio text-[#000000] h-4 w-4"
+                        />
+                        <div className="flex-1">
+                          <p className="font-medium">{option.service}</p>
+                          <p className="text-sm text-neutral-500">
+                            {option.description}
+                          </p>
+                          <p className="text-sm font-semibold">
+                            Rp {option.cost.toLocaleString("id-ID")}
+                          </p>
+                          <p className="text-xs text-neutral-400">
+                            Estimasi: {option.etd}
+                          </p>
+                        </div>
+                      </label>
+                    ))}
+                  </>
                 )}
               </div>
             </div>
@@ -953,16 +954,112 @@ export default function PublicTransaction() {
           {/* --- KOLOM KANAN (Sticky) --- */}
           <div className="lg:col-span-1 space-y-6 sticky top-24">
             {/* 1. Voucher Picker */}
-            <VoucherPicker
-              selected={selectedVoucher}
-              onChange={setSelectedVoucher}
-            />
+            <div className="bg-white rounded-3xl p-6 shadow-lg">
+              <VoucherPicker
+                selected={selectedVoucher}
+                onChange={setSelectedVoucher}
+              />
+            </div>
 
-            {/* 2. Metode Pembayaran */}
-            <PaymentMethod
-              value={paymentMethod}
-              onChange={(val) => setPaymentMethod(val)}
-            />
+            {/* 2. Metode Pembayaran (Inline Implementation from CartPage) */}
+            <div className="bg-white rounded-3xl p-6 shadow-lg">
+              <h3 className="font-bold text-black mb-4 flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-[#000000]" />
+                Metode Pembayaran
+              </h3>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-black mb-2">
+                    Tipe Pembayaran
+                  </label>
+                  <div className="space-y-2">
+                    {/* Automatic */}
+                    <div
+                      className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                        paymentType === "automatic"
+                          ? "border-black bg-neutral-50"
+                          : "border-neutral-200 hover:bg-neutral-50"
+                      }`}
+                      onClick={() => setPaymentType("automatic")}
+                    >
+                      <div
+                        className={`h-4 w-4 rounded-full border flex items-center justify-center ${
+                          paymentType === "automatic"
+                            ? "border-black"
+                            : "border-neutral-400"
+                        }`}
+                      >
+                        {paymentType === "automatic" && (
+                          <div className="h-2 w-2 rounded-full bg-black" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-medium">Otomatis</p>
+                        <p className="text-sm text-gray-500">
+                          Pembayaran online (Gateway)
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Manual */}
+                    <div
+                      className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                        paymentType === "manual"
+                          ? "border-black bg-neutral-50"
+                          : "border-neutral-200 hover:bg-neutral-50"
+                      }`}
+                      onClick={() => setPaymentType("manual")}
+                    >
+                      <div
+                        className={`h-4 w-4 rounded-full border flex items-center justify-center ${
+                          paymentType === "manual"
+                            ? "border-black"
+                            : "border-neutral-400"
+                        }`}
+                      >
+                        {paymentType === "manual" && (
+                          <div className="h-2 w-2 rounded-full bg-black" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-medium">Manual</p>
+                        <p className="text-sm text-gray-500">
+                          Transfer Manual (Konfirmasi Admin)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* INFO PEMBAYARAN */}
+                {paymentType === "automatic" && (
+                  <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl flex gap-3">
+                    <div className="mt-0.5">
+                      <ExternalLink className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div className="text-sm text-blue-800">
+                      <p className="font-semibold mb-1">Pembayaran via Doku</p>
+                      <p>
+                        Anda akan diarahkan ke halaman pembayaran aman setelah
+                        menekan tombol Checkout.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {paymentType === "manual" && (
+                  <div className="p-3 bg-neutral-100 rounded-lg border border-neutral-200">
+                    <div className="flex items-center gap-2 text-sm text-neutral-700">
+                      <Banknote className="w-4 h-4" />
+                      <span>
+                        Silakan selesaikan pesanan, admin akan menghubungi Anda.
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
 
             {/* 3. Ringkasan Pesanan */}
             <div className="bg-white rounded-3xl p-6 shadow-lg">
@@ -996,6 +1093,15 @@ export default function PublicTransaction() {
                   </span>
                 </div>
 
+                {paymentType === "cod" && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Fee COD (2%)</span>
+                    <span className="font-semibold">
+                      Rp {codFee.toLocaleString("id-ID")}
+                    </span>
+                  </div>
+                )}
+
                 <div className="border-t border-gray-200 pt-3">
                   <div className="flex justify-between text-lg font-bold">
                     <span>Total</span>
@@ -1006,15 +1112,39 @@ export default function PublicTransaction() {
                 </div>
               </div>
 
+              <div className="space-y-3 mb-6 text-sm">
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Shield className="w-4 h-4 text-[#000000]" />
+                  <span>Pembayaran 100% aman</span>
+                </div>
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Package className="w-4 h-4 text-[#00000000]" />
+                  <span>Garansi 30 hari</span>
+                </div>
+              </div>
+
               <button
                 onClick={onCheckout}
-                disabled={isCreating}
+                disabled={
+                  isProcessing ||
+                  cartItems.some((it) => !it.inStock) ||
+                  !shippingMethod ||
+                  !guest.guest_name ||
+                  !guest.address_line_1 ||
+                  !isPhoneValid ||
+                  !isEmailValid
+                }
                 className="w-full bg-[#000000] text-white py-4 rounded-2xl font-semibold hover:bg-[#000000]/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isCreating ? (
+                {isProcessing ? (
                   <>
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     Memproses...
+                  </>
+                ) : paymentType === "manual" ? (
+                  <>
+                    <Upload className="w-5 h-5" />
+                    Buat Pesanan
                   </>
                 ) : (
                   <>
@@ -1030,12 +1160,6 @@ export default function PublicTransaction() {
                 !guest.address_line_1) && (
                 <p className="text-red-500 text-sm text-center mt-3">
                   * Harap lengkapi semua informasi yang diperlukan
-                </p>
-              )}
-
-              {cartItems.some((it) => !it.inStock) && (
-                <p className="text-red-500 text-sm text-center mt-3">
-                  Beberapa produk tidak tersedia. Hapus untuk melanjutkan.
                 </p>
               )}
             </div>
@@ -1057,11 +1181,6 @@ export default function PublicTransaction() {
               <DotdLoader />
             </div>
           )}
-          {isRelError && (
-            <div className="text-center text-red-600">
-              Gagal memuat rekomendasi.
-            </div>
-          )}
           {!isRelLoading && !isRelError && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {relatedProducts.map((product) => (
@@ -1076,9 +1195,6 @@ export default function PublicTransaction() {
                       fill
                       className="object-cover group-hover:scale-105 transition-transform duration-500"
                     />
-                    <button className="absolute top-4 right-4 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-lg hover:bg-white transition-colors">
-                      <Heart className="w-4 h-4 text-black hover:text-red-500" />
-                    </button>
                   </div>
                   <div className="p-6">
                     <span className="text-sm text-[#000000] font-medium">
@@ -1087,32 +1203,10 @@ export default function PublicTransaction() {
                     <h3 className="text-lg font-bold text-black mt-1 mb-3">
                       {product.name}
                     </h3>
-                    <div className="flex items-center gap-2 mb-4">
-                      <div className="flex items-center gap-1">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <Star
-                            key={star}
-                            className={`w-4 h-4 ${
-                              star <= Math.round(product.rating)
-                                ? "fill-yellow-400 text-yellow-400"
-                                : "text-gray-300"
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      <span className="text-sm text-black">
-                        ({product.rating.toFixed(1)})
-                      </span>
-                    </div>
                     <div className="flex items-center gap-3 mb-4">
                       <span className="text-xl font-bold text-[#000000]">
                         Rp {product.price.toLocaleString("id-ID")}
                       </span>
-                      {product.originalPrice && (
-                        <span className="text-sm text-gray-400 line-through">
-                          Rp {product.originalPrice.toLocaleString("id-ID")}
-                        </span>
-                      )}
                     </div>
                     <div className="flex gap-2 bg-[#000000] rounded-2xl">
                       <button

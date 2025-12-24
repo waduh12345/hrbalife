@@ -37,9 +37,18 @@ type GuestInfo = {
   rajaongkir_district_id: number;
 };
 
+// Interface khusus untuk menangani respon data transaksi (pengganti any)
+interface TransactionResponseData {
+  reference?: string;
+  payment?: {
+    account_number?: string | null;
+  } | null;
+}
+
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null;
 }
+
 function hasPaymentLink(
   v: unknown
 ): v is { payment: { account_number?: string | null } } {
@@ -49,6 +58,7 @@ function hasPaymentLink(
   const acc = (p as Record<string, unknown>)["account_number"];
   return typeof acc === "string" || acc === null;
 }
+
 function hasReference(v: unknown): v is { reference: string } {
   return isRecord(v) && typeof v["reference"] === "string";
 }
@@ -122,6 +132,7 @@ export function useCheckout() {
         paymentMethod,
         paymentChannel,
         clearCart,
+        voucher,
       } = deps;
 
       // Validasi dasar
@@ -158,9 +169,11 @@ export function useCheckout() {
         const payload: CreateTransactionRequest = {
           address_line_1: shippingInfo.address_line_1,
           postal_code: shippingInfo.postal_code,
-          payment_type: "automatic",
+          // Gunakan paymentType dinamis
+          payment_type: paymentType as "automatic" | "manual",
           payment_method: paymentMethod,
           payment_channel: paymentChannel,
+          voucher: voucher,
           data: [
             {
               shop_id: 1,
@@ -194,7 +207,7 @@ export function useCheckout() {
         ) {
           const dataUnknown: unknown = result.data;
 
-          if (hasPaymentLink(dataUnknown)) {
+          if (paymentType === "automatic" && hasPaymentLink(dataUnknown)) {
             const paymentLink = dataUnknown.payment.account_number ?? null;
             if (paymentLink) {
               await Swal.fire({
@@ -272,7 +285,7 @@ export function useCheckout() {
         guest_name: string;
         guest_email: string;
         guest_phone: string;
-        payment_type: "automatic" | "saldo";
+        payment_type: "automatic" | "manual";
         wallet_id?: number;
         data: Array<{
           shop_id: number;
@@ -294,7 +307,8 @@ export function useCheckout() {
         guest_name: shippingInfo.fullName,
         guest_email: shippingInfo.email!,
         guest_phone: shippingInfo.phone,
-        payment_type: "automatic",
+        // Gunakan paymentType dinamis
+        payment_type: paymentType as "automatic" | "manual",
         data: [
           {
             shop_id: 1,
@@ -306,10 +320,11 @@ export function useCheckout() {
             ),
           },
         ],
+        voucher: voucher,
       };
 
       // Kirim ke endpoint public
-      await createPublicTx(
+      const res = await createPublicTx(
         publicPayload as unknown as Parameters<typeof createPublicTx>[0]
       ).unwrap();
 
@@ -326,13 +341,31 @@ export function useCheckout() {
         rajaongkir_district_id: shippingInfo.rajaongkir_district_id,
       });
 
-      // ✅ ALERT KHUSUS GUEST
-      await Swal.fire({
-        icon: "success",
-        title: "Pesanan Berhasil Dibuat",
-        text: `Silakan cek email ${shippingInfo.email} untuk mendapatkan detail & link pembayaran. Jika tidak terlihat, periksa folder Spam/Promotions.`,
-        confirmButtonColor: "#000000",
-      });
+      // ✅ LOGIC HANDLING RESPONSE PUBLIC (TANPA ANY)
+      if (res && typeof res === "object" && "data" in res) {
+        // Casting ke interface yang sudah didefinisikan
+        const dataRes = res.data as TransactionResponseData;
+
+        // Jika Automatic & ada Link
+        if (paymentType === "automatic" && dataRes.payment?.account_number) {
+          await Swal.fire({
+            icon: "success",
+            title: "Pesanan Berhasil Dibuat",
+            text: `Silakan cek email ${shippingInfo.email} atau lanjutkan pembayaran sekarang.`,
+            confirmButtonColor: "#000000",
+            confirmButtonText: "Bayar Sekarang",
+          });
+          window.open(dataRes.payment.account_number, "_blank");
+        } else {
+          // Manual atau Automatic tanpa link (payment null)
+          await Swal.fire({
+            icon: "success",
+            title: "Pesanan Berhasil Dibuat",
+            text: `Silakan cek email ${shippingInfo.email} untuk instruksi selanjutnya.`,
+            confirmButtonColor: "#000000",
+          });
+        }
+      }
 
       clearCart();
       router.push("/me");

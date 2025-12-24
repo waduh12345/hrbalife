@@ -59,8 +59,9 @@ export interface CheckoutDeps {
   shippingInfo: ShippingInfoState;
 
   paymentType: PaymentType;
-  paymentMethod: PaymentMethod;
-  paymentChannel: PaymentChannel;
+  paymentMethod?: PaymentMethod;
+  paymentChannel?: PaymentChannel;
+  voucher: number[];
 
   clearCart: () => void;
 }
