@@ -107,31 +107,35 @@ export default function VariantPickerModal({
   const curStock = toNumber(selected?.stock);
   const total = curPrice * qty;
 
- const handleAdd = () => {
-   if (!selected) return;
-   const vId = selected.id;
-   const price = curPrice || toNumber(product.price);
+  const handleAdd = () => {
+    if (!selected) return;
+    const vId = selected.id;
+    const price = curPrice || toNumber(product.price);
 
-   // Add item to cart
-   addItem({ ...product, price }, vId);
+    // Add item to cart
+    addItem({ ...product, price }, vId);
 
-   // Trigger SweetAlert
-   Swal.fire({
-     icon: "success", // Success icon
-     title: "Berhasil!",
-     text: "Produk telah ditambahkan ke keranjang.",
-     showConfirmButton: false,
-     timer: 1500, // The alert will auto-close after 1.5 seconds
-     toast: true, // Show as a toast message
-     position: "top-end", // Position at top-right
-     background: "#28a745", // Green background for success
-     color: "#fff", // White text color
-   });
+    Swal.fire({
+      icon: "success",
+      title: "Berhasil!",
+      text: "Produk telah ditambahkan ke keranjang.",
+      showConfirmButton: false,
+      timer: 1500,
+      toast: true,
+      position: "top-end",
 
-   // Optional: trigger any callback function after the item is added
-   onAdded?.();
-   onClose();
- };
+      background: "#ffffff",
+      color: "#000000",
+      iconColor: "#000000",
+      customClass: {
+        popup: "border border-gray-200 shadow-xl",
+      },
+      // ----------------------
+    });
+
+    onAdded?.();
+    onClose();
+  };
 
   return (
     <div className="fixed inset-0 z-[70]" role="dialog" aria-modal="true">
