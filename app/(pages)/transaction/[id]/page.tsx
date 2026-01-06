@@ -306,9 +306,13 @@ export default function GuestConfirmationPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100">
                       <div className="flex items-center gap-4 mb-4">
-                        <div className="w-16 h-10 bg-gray-800 rounded flex items-center justify-center text-white font-bold italic">
-                          BCA
-                        </div>
+                        <Image
+                          src="/bca-logo.jpeg"
+                          alt="Bank Central Asia"
+                          width={80}
+                          height={80}
+                          className="w-12 h-12 rounded-full object-cover"
+                        />
                         <div>
                           <p className="text-sm text-gray-500">
                             Bank Central Asia
