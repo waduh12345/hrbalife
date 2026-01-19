@@ -12,6 +12,10 @@ import {
   CreditCard,
   MapPin,
   Package,
+  User,
+  X,
+  Edit2,
+  type LucideIcon,
 } from "lucide-react";
 
 // Services & Hooks
@@ -42,7 +46,6 @@ import type { CheckoutDeps } from "@/types/checkout";
 
 /** ====== Helpers & Types ====== */
 
-// Interface untuk data wilayah
 interface RegionData {
   id: number;
   name: string;
@@ -108,11 +111,113 @@ function getImageUrlFromProduct(p: Product | CartItem): string {
   return "/api/placeholder/150/150";
 }
 
-/** ====== Component ====== */
+/** ====== Sub-Components for UI Layout ====== */
+
+// 1. Simple Modal Wrapper
+const CheckoutModal = ({
+  isOpen,
+  onClose,
+  title,
+  children,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="bg-[#FDFBF7] w-full max-w-lg rounded-3xl shadow-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="flex items-center justify-between p-5 border-b border-[#1F3A2B]/10 bg-white">
+          <h3
+            className={`text-lg font-bold text-[#1F3A2B] ${fredoka.className}`}
+          >
+            {title}
+          </h3>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <X size={20} className="text-[#1F3A2B]" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+          {children}
+        </div>
+        <div className="p-5 border-t border-[#1F3A2B]/10 bg-white">
+          <button
+            onClick={onClose}
+            className="w-full bg-[#1F3A2B] text-white py-3 rounded-xl font-bold text-sm hover:bg-[#1F3A2B]/90 transition shadow-lg"
+          >
+            Simpan & Tutup
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// 2. Summary Card (Tampilan Awal)
+const SectionCard = ({
+  title,
+  icon: Icon,
+  onEdit,
+  isCompleted,
+  children,
+}: {
+  title: string;
+  icon: LucideIcon;
+  onEdit: () => void;
+  isCompleted: boolean;
+  children: React.ReactNode;
+}) => {
+  return (
+    <div className="bg-white border border-[#1F3A2B]/10 rounded-2xl p-6 shadow-sm hover:shadow-md hover:scale-[1.005] transition-all duration-300 group/card">
+      <div className="flex justify-between items-start mb-5">
+        <h3
+          className={`text-lg font-bold flex items-center gap-3 ${fredoka.className} text-[#1F3A2B]`}
+        >
+          <div className="w-8 h-8 rounded-full bg-[#DFF19D] flex items-center justify-center text-[#1F3A2B] shadow-sm">
+            <Icon size={16} />
+          </div>
+          {title}
+        </h3>
+
+        {/* Tombol Edit yang Lebih Menarik */}
+        <button
+          onClick={onEdit}
+          className={`
+            group flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all duration-300
+            border border-[#1F3A2B]/20 bg-white text-[#1F3A2B]
+            hover:bg-[#1F3A2B] hover:text-white hover:shadow-lg
+          `}
+        >
+          {isCompleted ? "Ubah Data" : "Lengkapi"}
+          <Edit2
+            size={12}
+            className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform"
+          />
+        </button>
+      </div>
+      <div className="pl-11 text-sm text-[#1F3A2B]/80 leading-relaxed">
+        {children}
+      </div>
+    </div>
+  );
+};
+
+/** ====== Main Component ====== */
 export default function PublicTransaction() {
   const router = useRouter();
   const { handleCheckout } = useCheckout();
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Modal State
+  const [activeModal, setActiveModal] = useState<
+    "contact" | "address" | "shipping" | null
+  >(null);
 
   // Cart Hook
   const { cartItems, clearCart } = useCart();
@@ -176,7 +281,6 @@ export default function PublicTransaction() {
   const [shippingMethod, setShippingMethod] =
     useState<ShippingCostOption | null>(null);
 
-  // FIX: Menambahkan dimensi default untuk mengatasi error TypeScript
   const { data: apiShippingOptions = [], isLoading: isShippingLoading } =
     useCheckShippingCostQuery(
       {
@@ -271,8 +375,6 @@ export default function PublicTransaction() {
 
     setIsProcessing(true);
     try {
-      // FIX: Memastikan items terkirim dengan struktur yang benar jika hook mengizinkan override
-      // Jika hook tidak mendukung, pastikan data di cartItems (Zustand) sudah benar
       const deps: CheckoutDeps = {
         sessionEmail: null,
         shippingCourier,
@@ -302,6 +404,14 @@ export default function PublicTransaction() {
     }
   };
 
+  // --- Display Helpers ---
+  const getProvinceName = () =>
+    provinces.find((p) => p.id === guest.rajaongkir_province_id)?.name;
+  const getCityName = () =>
+    cities.find((c) => c.id === guest.rajaongkir_city_id)?.name;
+  const getDistrictName = () =>
+    districts.find((d) => d.id === guest.rajaongkir_district_id)?.name;
+
   if (!isMounted) return null;
 
   if (cartItems.length === 0) {
@@ -323,7 +433,7 @@ export default function PublicTransaction() {
             <ArrowLeft className="w-5 h-5" /> KEMBALI
           </button>
           <div
-            className={`text-2xl font-bold tracking-tight ${fredoka.className}`}
+            className={`text-lg font-bold tracking-tight ${fredoka.className}`}
           >
             HERBAL CARE®
           </div>
@@ -332,254 +442,105 @@ export default function PublicTransaction() {
       </header>
 
       <main className="container mx-auto px-4 lg:px-8 py-12">
-        <div className="grid sm:grid-cols-1 lg:grid-cols-12 gap-12">
-          {/* --- LEFT COLUMN: FORMS --- */}
-          <div className="lg:col-span-7 space-y-12">
-            {/* 1. Contact Information */}
-            <section>
-              <h2
-                className={`text-xl font-bold mb-6 flex items-center gap-2 ${fredoka.className}`}
-              >
-                1. Informasi Kontak
-              </h2>
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold uppercase tracking-wider text-[#1F3A2B]/60">
-                      Nama Lengkap
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full bg-transparent border-b border-[#1F3A2B]/20 py-2 text-lg focus:outline-none focus:border-[#1F3A2B] transition-colors placeholder:text-[#1F3A2B]/30"
-                      placeholder="Nama Anda"
-                      value={guest.guest_name}
-                      onChange={(e) =>
-                        setGuest((s) => ({ ...s, guest_name: e.target.value }))
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold uppercase tracking-wider text-[#1F3A2B]/60">
-                      Nomor Telepon
-                    </label>
-                    <input
-                      type="tel"
-                      className="w-full bg-transparent border-b border-[#1F3A2B]/20 py-2 text-lg focus:outline-none focus:border-[#1F3A2B] transition-colors placeholder:text-[#1F3A2B]/30"
-                      placeholder="08xxxxxxxx"
-                      value={guest.guest_phone}
-                      onChange={(e) =>
-                        setGuest((s) => ({ ...s, guest_phone: e.target.value }))
-                      }
-                    />
-                    {!isPhoneValid && guest.guest_phone && (
-                      <p className="text-xs text-red-500 mt-1">
-                        Nomor tidak valid
-                      </p>
-                    )}
-                  </div>
-                </div>
+        <div className="grid sm:grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+          {/* --- LEFT COLUMN: SUMMARY CARDS --- */}
+          <div className="lg:col-span-7 space-y-6">
+            {/* 1. Contact Information Card */}
+            <SectionCard
+              title="Informasi Kontak"
+              icon={User}
+              onEdit={() => setActiveModal("contact")}
+              isCompleted={
+                !!guest.guest_name && !!guest.guest_email && !!guest.guest_phone
+              }
+            >
+              {guest.guest_name ? (
                 <div className="space-y-1">
-                  <label className="text-xs font-bold uppercase tracking-wider text-[#1F3A2B]/60">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    className="w-full bg-transparent border-b border-[#1F3A2B]/20 py-2 text-lg focus:outline-none focus:border-[#1F3A2B] transition-colors placeholder:text-[#1F3A2B]/30"
-                    placeholder="email@anda.com"
-                    value={guest.guest_email}
-                    onChange={(e) =>
-                      setGuest((s) => ({ ...s, guest_email: e.target.value }))
-                    }
-                  />
-                  {!isEmailValid && guest.guest_email && (
-                    <p className="text-xs text-red-500 mt-1">
-                      Email tidak valid
+                  <p className="font-bold text-base">{guest.guest_name}</p>
+                  <p className="">{guest.guest_phone}</p>
+                  <p className="">{guest.guest_email}</p>
+                </div>
+              ) : (
+                <p className="text-[#1F3A2B]/40 italic">
+                  Belum ada data kontak.
+                </p>
+              )}
+            </SectionCard>
+
+            {/* 2. Shipping Address Card */}
+            <SectionCard
+              title="Alamat Pengiriman"
+              icon={MapPin}
+              onEdit={() => setActiveModal("address")}
+              isCompleted={
+                !!guest.address_line_1 && !!guest.rajaongkir_district_id
+              }
+            >
+              {guest.address_line_1 && guest.rajaongkir_province_id ? (
+                <div className="space-y-1">
+                  <p className="font-medium text-base leading-relaxed">
+                    {guest.address_line_1}
+                  </p>
+                  <p className="">
+                    {getDistrictName()}, {getCityName()}, {getProvinceName()}
+                  </p>
+                  <p className="font-bold">Kode Pos: {guest.postal_code}</p>
+                </div>
+              ) : (
+                <p className="text-[#1F3A2B]/40 italic">
+                  Belum ada alamat pengiriman.
+                </p>
+              )}
+            </SectionCard>
+
+            {/* 3. Shipping Method Card */}
+            <SectionCard
+              title="Metode Pengiriman"
+              icon={Truck}
+              onEdit={() => setActiveModal("shipping")}
+              isCompleted={!!shippingMethod}
+            >
+              {shippingMethod ? (
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="font-bold text-base capitalize">
+                      {shippingCourier} - {shippingMethod.service}
                     </p>
-                  )}
+                    <p className="text-sm text-[#1F3A2B]/60">
+                      {shippingMethod.description}
+                    </p>
+                    <p className="text-xs text-[#1F3A2B]/50 mt-1">
+                      Estimasi: {shippingMethod.etd}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-bold text-base block">
+                      Rp {shippingMethod.cost.toLocaleString("id-ID")}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            </section>
+              ) : (
+                <p className="text-[#1F3A2B]/40 italic">
+                  {!guest.rajaongkir_district_id
+                    ? "Lengkapi alamat terlebih dahulu."
+                    : "Belum memilih metode pengiriman."}
+                </p>
+              )}
+            </SectionCard>
 
-            {/* 2. Shipping Address */}
-            <section>
-              <h2
-                className={`text-xl font-bold mb-6 flex items-center gap-2 ${fredoka.className}`}
+            {/* 4. Payment Method (Tetap Terbuka/Langsung Tampil) */}
+            <section className="pt-2">
+              <h3
+                className={`text-lg font-bold mb-4 ${fredoka.className} flex items-center gap-3`}
               >
-                2. Alamat Pengiriman
-              </h2>
-              <div className="p-8 border border-[#1F3A2B]/10 rounded-2xl bg-white space-y-6 shadow-sm">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-wider text-[#1F3A2B]/60">
-                      Provinsi
-                    </label>
-                    <Combobox
-                      data={provinces}
-                      value={guest.rajaongkir_province_id || null}
-                      onChange={(id) =>
-                        setGuest((s) => ({ ...s, rajaongkir_province_id: id }))
-                      }
-                      getOptionLabel={(i: RegionData) => i.name}
-                      isLoading={provLoading}
-                      placeholder="Pilih Provinsi"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-wider text-[#1F3A2B]/60">
-                      Kota/Kabupaten
-                    </label>
-                    <Combobox
-                      data={cities}
-                      value={guest.rajaongkir_city_id || null}
-                      onChange={(id) =>
-                        setGuest((s) => ({ ...s, rajaongkir_city_id: id }))
-                      }
-                      getOptionLabel={(i: RegionData) => i.name}
-                      isLoading={cityLoading}
-                      placeholder="Pilih Kota"
-                      disabled={!guest.rajaongkir_province_id}
-                    />
-                  </div>
+                <div className="w-8 h-8 rounded-full bg-[#DFF19D] flex items-center justify-center text-[#1F3A2B] shadow-sm">
+                  <CreditCard size={16} />
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-wider text-[#1F3A2B]/60">
-                      Kecamatan
-                    </label>
-                    <Combobox
-                      data={districts}
-                      value={guest.rajaongkir_district_id || null}
-                      onChange={(id) =>
-                        setGuest((s) => ({ ...s, rajaongkir_district_id: id }))
-                      }
-                      getOptionLabel={(i: RegionData) => i.name}
-                      isLoading={distLoading}
-                      placeholder="Pilih Kecamatan"
-                      disabled={!guest.rajaongkir_city_id}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-wider text-[#1F3A2B]/60">
-                      Kode Pos
-                    </label>
-                    <input
-                      type="text"
-                      className="w-full border border-[#1F3A2B]/10 rounded-lg px-4 py-2.5 focus:outline-none focus:border-[#1F3A2B] bg-[#FDFBF7] transition-colors"
-                      placeholder="12345"
-                      value={guest.postal_code}
-                      onChange={(e) =>
-                        setGuest((s) => ({ ...s, postal_code: e.target.value }))
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-[#1F3A2B]/60">
-                    Detail Alamat
-                  </label>
-                  <textarea
-                    className="w-full border border-[#1F3A2B]/10 rounded-lg px-4 py-3 focus:outline-none focus:border-[#1F3A2B] bg-[#FDFBF7] transition-colors"
-                    rows={3}
-                    placeholder="Nama jalan, gedung, nomor rumah..."
-                    value={guest.address_line_1}
-                    onChange={(e) =>
-                      setGuest((s) => ({
-                        ...s,
-                        address_line_1: e.target.value,
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-            </section>
-
-            {/* 3. Shipping Method */}
-            <section>
-              <div className="flex justify-between items-center mb-6">
-                <h2
-                  className={`text-xl font-bold ${fredoka.className} flex items-center gap-2`}
-                >
-                  3. Metode Pengiriman
-                </h2>
-                <div className="w-48">
-                  <Select
-                    value={shippingCourier ?? ""}
-                    onValueChange={setShippingCourier}
-                    disabled={!guest.rajaongkir_district_id}
-                  >
-                    <SelectTrigger className="h-10 w-full text-sm bg-white border-[#1F3A2B]/20 rounded-lg">
-                      <SelectValue placeholder="Pilih Kurir" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="jne">JNE</SelectItem>
-                      <SelectItem value="international">
-                        International
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="bg-white border border-[#1F3A2B]/10 rounded-2xl overflow-hidden shadow-sm">
-                {isShippingLoading ? (
-                  <div className="p-10 flex justify-center text-[#1F3A2B]">
-                    <DotdLoader />
-                  </div>
-                ) : !shippingCourier ? (
-                  <div className="p-10 text-center text-[#1F3A2B]/40 text-sm flex flex-col items-center gap-2">
-                    <MapPin className="w-8 h-8 opacity-50" />
-                    Silakan lengkapi alamat dan pilih kurir.
-                  </div>
-                ) : (
-                  <div className="divide-y divide-[#1F3A2B]/5">
-                    {shippingOptions.map((opt, i) => (
-                      <label
-                        key={i}
-                        className={`flex items-center p-5 cursor-pointer hover:bg-[#1F3A2B]/5 transition ${
-                          shippingMethod?.service === opt.service
-                            ? "bg-[#1F3A2B]/5"
-                            : ""
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="shipping"
-                          className="accent-[#1F3A2B] w-5 h-5 mr-4"
-                          checked={shippingMethod?.service === opt.service}
-                          onChange={() => setShippingMethod(opt)}
-                        />
-                        <div className="flex-1">
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="font-bold flex items-center gap-2 text-[#1F3A2B]">
-                              <Truck size={18} /> {opt.service}
-                            </span>
-                            <span className="font-bold text-lg">
-                              Rp {opt.cost.toLocaleString("id-ID")}
-                            </span>
-                          </div>
-                          <p className="text-sm text-[#1F3A2B]/60">
-                            {opt.description} • Estimasi {opt.etd}
-                          </p>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </section>
-
-            {/* 4. Payment Method */}
-            <section>
-              <h2
-                className={`text-xl font-bold mb-6 ${fredoka.className} flex items-center gap-2`}
-              >
-                4. Metode Pembayaran
-              </h2>
+                Metode Pembayaran
+              </h3>
               <div className="bg-white border border-[#1F3A2B]/10 rounded-2xl overflow-hidden shadow-sm divide-y divide-[#1F3A2B]/5">
                 {/* Option: Automatic */}
-                <label className="flex items-center p-5 cursor-pointer hover:bg-[#1F3A2B]/5 transition">
+                <label className="flex items-center p-5 cursor-pointer hover:bg-[#1F3A2B]/5 transition group">
                   <input
                     type="radio"
                     name="payment"
@@ -588,17 +549,17 @@ export default function PublicTransaction() {
                     onChange={() => setPaymentType("automatic")}
                   />
                   <div>
-                    <span className="font-bold block mb-1 text-[#1F3A2B]">
+                    <span className="font-bold block mb-1 text-sm text-[#1F3A2B] group-hover:text-[#1F3A2B]">
                       Pembayaran Otomatis
                     </span>
-                    <span className="text-sm text-[#1F3A2B]/60">
+                    <span className="text-xs text-[#1F3A2B]/60">
                       QRIS, Virtual Account, E-Wallet (Proses Instan)
                     </span>
                   </div>
                 </label>
 
                 {/* Option: Manual */}
-                <label className="flex items-center p-5 cursor-pointer hover:bg-[#1F3A2B]/5 transition">
+                <label className="flex items-center p-5 cursor-pointer hover:bg-[#1F3A2B]/5 transition group">
                   <input
                     type="radio"
                     name="payment"
@@ -607,10 +568,10 @@ export default function PublicTransaction() {
                     onChange={() => setPaymentType("manual")}
                   />
                   <div>
-                    <span className="font-bold block mb-1 text-[#1F3A2B]">
+                    <span className="font-bold block mb-1 text-sm text-[#1F3A2B] group-hover:text-[#1F3A2B]">
                       Transfer Manual
                     </span>
-                    <span className="text-sm text-[#1F3A2B]/60">
+                    <span className="text-xs text-[#1F3A2B]/60">
                       Konfirmasi via WhatsApp Admin setelah transfer
                     </span>
                   </div>
@@ -628,7 +589,7 @@ export default function PublicTransaction() {
                   <h3 className="font-bold text-lg flex items-center gap-2 text-[#1F3A2B]">
                     <Package size={20} /> Ringkasan Pesanan
                   </h3>
-                  <span className="text-sm bg-[#1F3A2B]/10 text-[#1F3A2B] px-3 py-1 rounded-full font-bold">
+                  <span className="text-xs bg-[#1F3A2B]/10 text-[#1F3A2B] px-3 py-1 rounded-full font-bold">
                     {cartItems.length} Item
                   </span>
                 </div>
@@ -636,14 +597,14 @@ export default function PublicTransaction() {
                 <div className="space-y-5 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                   {cartItems.map((item) => (
                     <div key={item.cartId} className="flex gap-4 group">
-                      <div className="relative w-20 h-20 bg-[#FDFBF7] rounded-xl overflow-hidden border border-[#1F3A2B]/10 shrink-0 group-hover:border-[#1F3A2B]/30 transition">
+                      <div className="relative w-16 h-16 bg-[#FDFBF7] rounded-xl overflow-hidden border border-[#1F3A2B]/10 shrink-0 group-hover:border-[#1F3A2B]/30 transition">
                         <Image
                           src={getImageUrlFromProduct(item)}
                           alt={item.name}
                           fill
                           className="object-cover"
                         />
-                        <span className="absolute bottom-0 right-0 bg-[#1F3A2B] text-white text-[10px] w-6 h-6 flex items-center justify-center rounded-tl-lg font-bold">
+                        <span className="absolute bottom-0 right-0 bg-[#1F3A2B] text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-tl-lg font-bold">
                           x{item.quantity}
                         </span>
                       </div>
@@ -711,11 +672,12 @@ export default function PublicTransaction() {
                     </div>
                   )}
                   <div className="pt-4 mt-2 border-t border-white/10 flex justify-between items-end">
-                    <span className="text-lg font-bold text-white/90">
+                    <span className="text-base font-bold text-white/90">
                       Total Bayar
                     </span>
+                    {/* Ukuran Total Bayar disesuaikan (tidak terlalu besar) */}
                     <span
-                      className={`text-3xl font-bold text-[#DFF19D] ${fredoka.className}`}
+                      className={`text-xl font-bold text-[#DFF19D] ${fredoka.className}`}
                     >
                       Rp {total.toLocaleString("id-ID")}
                     </span>
@@ -733,7 +695,7 @@ export default function PublicTransaction() {
                 <button
                   onClick={onCheckout}
                   disabled={isProcessing}
-                  className="w-full bg-[#DFF19D] text-[#1F3A2B] py-4 rounded-xl font-bold hover:bg-white hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-2 group"
+                  className="w-full bg-[#DFF19D] text-[#1F3A2B] py-3.5 rounded-xl font-bold hover:bg-white hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-2 group text-sm"
                 >
                   {isProcessing ? (
                     <>
@@ -742,7 +704,7 @@ export default function PublicTransaction() {
                   ) : (
                     <>
                       BAYAR SEKARANG
-                      <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                      <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                     </>
                   )}
                 </button>
@@ -756,6 +718,229 @@ export default function PublicTransaction() {
           </div>
         </div>
       </main>
+
+      {/* ====== MODALS ====== */}
+
+      {/* 1. Modal Contact Info */}
+      <CheckoutModal
+        isOpen={activeModal === "contact"}
+        onClose={() => setActiveModal(null)}
+        title="Ubah Informasi Kontak"
+      >
+        <div className="space-y-5">
+          <div className="space-y-1">
+            <label className="text-xs font-bold uppercase tracking-wider text-[#1F3A2B]/60">
+              Nama Lengkap
+            </label>
+            <input
+              type="text"
+              className="w-full bg-transparent border-b border-[#1F3A2B]/20 py-2 text-sm focus:outline-none focus:border-[#1F3A2B] transition-colors placeholder:text-[#1F3A2B]/30"
+              placeholder="Nama Anda"
+              value={guest.guest_name}
+              onChange={(e) =>
+                setGuest((s) => ({ ...s, guest_name: e.target.value }))
+              }
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-bold uppercase tracking-wider text-[#1F3A2B]/60">
+              Nomor Telepon
+            </label>
+            <input
+              type="tel"
+              className="w-full bg-transparent border-b border-[#1F3A2B]/20 py-2 text-sm focus:outline-none focus:border-[#1F3A2B] transition-colors placeholder:text-[#1F3A2B]/30"
+              placeholder="08xxxxxxxx"
+              value={guest.guest_phone}
+              onChange={(e) =>
+                setGuest((s) => ({ ...s, guest_phone: e.target.value }))
+              }
+            />
+            {!isPhoneValid && guest.guest_phone && (
+              <p className="text-xs text-red-500 mt-1">Nomor tidak valid</p>
+            )}
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-bold uppercase tracking-wider text-[#1F3A2B]/60">
+              Email Address
+            </label>
+            <input
+              type="email"
+              className="w-full bg-transparent border-b border-[#1F3A2B]/20 py-2 text-sm focus:outline-none focus:border-[#1F3A2B] transition-colors placeholder:text-[#1F3A2B]/30"
+              placeholder="email@anda.com"
+              value={guest.guest_email}
+              onChange={(e) =>
+                setGuest((s) => ({ ...s, guest_email: e.target.value }))
+              }
+            />
+            {!isEmailValid && guest.guest_email && (
+              <p className="text-xs text-red-500 mt-1">Email tidak valid</p>
+            )}
+          </div>
+        </div>
+      </CheckoutModal>
+
+      {/* 2. Modal Address */}
+      <CheckoutModal
+        isOpen={activeModal === "address"}
+        onClose={() => setActiveModal(null)}
+        title="Ubah Alamat Pengiriman"
+      >
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-[#1F3A2B]/60">
+              Provinsi
+            </label>
+            <Combobox
+              data={provinces}
+              value={guest.rajaongkir_province_id || null}
+              onChange={(id) =>
+                setGuest((s) => ({ ...s, rajaongkir_province_id: id }))
+              }
+              getOptionLabel={(i: RegionData) => i.name}
+              isLoading={provLoading}
+              placeholder="Pilih Provinsi"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-[#1F3A2B]/60">
+              Kota/Kabupaten
+            </label>
+            <Combobox
+              data={cities}
+              value={guest.rajaongkir_city_id || null}
+              onChange={(id) =>
+                setGuest((s) => ({ ...s, rajaongkir_city_id: id }))
+              }
+              getOptionLabel={(i: RegionData) => i.name}
+              isLoading={cityLoading}
+              placeholder="Pilih Kota"
+              disabled={!guest.rajaongkir_province_id}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-[#1F3A2B]/60">
+              Kecamatan
+            </label>
+            <Combobox
+              data={districts}
+              value={guest.rajaongkir_district_id || null}
+              onChange={(id) =>
+                setGuest((s) => ({ ...s, rajaongkir_district_id: id }))
+              }
+              getOptionLabel={(i: RegionData) => i.name}
+              isLoading={distLoading}
+              placeholder="Pilih Kecamatan"
+              disabled={!guest.rajaongkir_city_id}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-[#1F3A2B]/60">
+              Kode Pos
+            </label>
+            <input
+              type="text"
+              className="w-full border border-[#1F3A2B]/10 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-[#1F3A2B] bg-[#FDFBF7] transition-colors"
+              placeholder="12345"
+              value={guest.postal_code}
+              onChange={(e) =>
+                setGuest((s) => ({ ...s, postal_code: e.target.value }))
+              }
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-[#1F3A2B]/60">
+              Detail Alamat
+            </label>
+            <textarea
+              className="w-full border border-[#1F3A2B]/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#1F3A2B] bg-[#FDFBF7] transition-colors"
+              rows={3}
+              placeholder="Nama jalan, gedung, nomor rumah..."
+              value={guest.address_line_1}
+              onChange={(e) =>
+                setGuest((s) => ({
+                  ...s,
+                  address_line_1: e.target.value,
+                }))
+              }
+            />
+          </div>
+        </div>
+      </CheckoutModal>
+
+      {/* 3. Modal Shipping Method */}
+      <CheckoutModal
+        isOpen={activeModal === "shipping"}
+        onClose={() => setActiveModal(null)}
+        title="Ubah Metode Pengiriman"
+      >
+        <div className="space-y-6">
+          <div className="w-full">
+            <label className="text-xs font-bold uppercase tracking-wider text-[#1F3A2B]/60 mb-2 block">
+              Pilih Kurir
+            </label>
+            <Select
+              value={shippingCourier ?? ""}
+              onValueChange={setShippingCourier}
+              disabled={!guest.rajaongkir_district_id}
+            >
+              <SelectTrigger className="h-11 w-full text-sm bg-white border-[#1F3A2B]/20 rounded-xl">
+                <SelectValue placeholder="Pilih Kurir" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="jne">JNE</SelectItem>
+                <SelectItem value="international">International</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="bg-white border border-[#1F3A2B]/10 rounded-xl overflow-hidden shadow-sm">
+            {isShippingLoading ? (
+              <div className="p-10 flex justify-center text-[#1F3A2B]">
+                <DotdLoader />
+              </div>
+            ) : !shippingCourier ? (
+              <div className="p-8 text-center text-[#1F3A2B]/40 text-sm flex flex-col items-center gap-2">
+                <MapPin className="w-8 h-8 opacity-50" />
+                Silakan lengkapi alamat dan pilih kurir.
+              </div>
+            ) : (
+              <div className="divide-y divide-[#1F3A2B]/5">
+                {shippingOptions.map((opt, i) => (
+                  <label
+                    key={i}
+                    className={`flex items-center p-4 cursor-pointer hover:bg-[#1F3A2B]/5 transition ${
+                      shippingMethod?.service === opt.service
+                        ? "bg-[#1F3A2B]/5"
+                        : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="shipping"
+                      className="accent-[#1F3A2B] w-5 h-5 mr-4"
+                      checked={shippingMethod?.service === opt.service}
+                      onChange={() => setShippingMethod(opt)}
+                    />
+                    <div className="flex-1">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="font-bold text-sm flex items-center gap-2 text-[#1F3A2B]">
+                          <Truck size={14} /> {opt.service}
+                        </span>
+                        <span className="font-bold text-sm">
+                          Rp {opt.cost.toLocaleString("id-ID")}
+                        </span>
+                      </div>
+                      <p className="text-xs text-[#1F3A2B]/60">
+                        {opt.description} • Estimasi {opt.etd}
+                      </p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </CheckoutModal>
     </div>
   );
 }

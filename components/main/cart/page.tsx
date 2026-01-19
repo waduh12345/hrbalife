@@ -7,22 +7,17 @@ import {
   Plus,
   Minus,
   Trash2,
-  Heart,
   ArrowLeft,
   CreditCard,
   CheckCircle,
   Sparkles,
-  Package,
-  ShieldCheck, // Updated icon
+  ShieldCheck,
   Truck,
   Star,
-  Upload,
-  Banknote,
-  ExternalLink,
+  MapPin,
+  ChevronRight,
   Layers,
   Maximize2,
-  ChevronRight, // Updated icon
-  MapPin, // Updated icon
 } from "lucide-react";
 import { Product } from "@/types/admin/product";
 import { useGetProductListQuery } from "@/services/product.service";
@@ -56,7 +51,7 @@ import VariantPickerModal from "@/components/variant-picker-modal";
 import VoucherPicker from "@/components/voucher-picker";
 import type { Voucher } from "@/types/voucher";
 import useCart, { CartItem } from "@/hooks/use-cart";
-import { fredoka, sniglet } from "@/lib/fonts"; // Fonts from UI reference
+import { fredoka, sniglet } from "@/lib/fonts";
 
 // Definisi Tipe Pembayaran
 type PaymentType = "automatic" | "manual" | "cod";
@@ -198,7 +193,7 @@ export default function CartPage() {
     increaseItemQuantity,
     decreaseItemQuantity,
     clearCart,
-    addItem, // Added for related products
+    addItem,
   } = useCart();
 
   // --- GROUPING LOGIC ---
@@ -471,7 +466,7 @@ export default function CartPage() {
   if (cartItems.length === 0) {
     return (
       <div
-        className={`min-h-screen w-full bg-gradient-to-br from-white to-[#1F3A2B]/10 pt-20 pb-20 ${sniglet.className}`}
+        className={`min-h-screen w-full bg-[#FDFBF7] pt-20 pb-20 ${sniglet.className}`}
       >
         <div className="container mx-auto px-6 lg:px-12">
           {/* --- EMPTY STATE SECTION --- */}
@@ -480,11 +475,11 @@ export default function CartPage() {
               <ShoppingCart className="w-16 h-16 text-[#1F3A2B]" />
             </div>
 
-            <h1 className="text-4xl font-bold text-[#1F3A2B] mb-4">
+            <h1 className="text-3xl font-bold text-[#1F3A2B] mb-4">
               Keranjang Kosong
             </h1>
 
-            <p className="text-xl text-gray-600 mb-8 px-4">
+            <p className="text-lg text-gray-600 mb-8 px-4">
               Belum ada produk kreatif di keranjang Anda. Yuk, jelajahi koleksi
               produk ramah lingkungan kami!
             </p>
@@ -501,7 +496,7 @@ export default function CartPage() {
           {/* --- RECOMMENDATION SECTION (Using Related Logic from Old Page) --- */}
           <div className="mt-16">
             <h2
-              className={`text-2xl font-bold text-gray-900 mb-6 ${fredoka.className}`}
+              className={`text-xl font-bold text-[#1F3A2B] mb-6 ${fredoka.className}`}
             >
               Produk Rekomendasi
             </h2>
@@ -515,7 +510,7 @@ export default function CartPage() {
                 {relatedProducts.map((product) => (
                   <div
                     key={product.id}
-                    className="bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 group border border-[#1F3A2B]/5"
+                    className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-2 group border border-[#1F3A2B]/10"
                   >
                     <div className="relative h-48">
                       <Image
@@ -526,7 +521,7 @@ export default function CartPage() {
                       />
                     </div>
                     <div className="p-6">
-                      <h3 className="text-lg font-bold text-[#1F3A2B] mt-1 mb-3 line-clamp-2">
+                      <h3 className="text-base font-bold text-[#1F3A2B] mt-1 mb-3 line-clamp-2">
                         {product.name}
                       </h3>
                       <div className="flex gap-2">
@@ -534,7 +529,7 @@ export default function CartPage() {
                           onClick={() =>
                             addItem({ ...product.__raw, quantity: 1 }, 0)
                           }
-                          className="w-full bg-[#1F3A2B] text-white py-3 rounded-2xl font-semibold hover:bg-[#1F3A2B]/90 transition-colors flex items-center justify-center gap-2"
+                          className="w-full bg-[#1F3A2B] text-white py-3 rounded-2xl font-semibold hover:bg-[#1F3A2B]/90 transition-colors flex items-center justify-center gap-2 text-sm"
                         >
                           <Plus className="w-4 h-4" />
                           Tambah
@@ -566,7 +561,7 @@ export default function CartPage() {
             <ArrowLeft className="w-5 h-5" /> KEMBALI
           </button>
           <div
-            className={`text-2xl font-bold tracking-tight ${fredoka.className}`}
+            className={`text-lg font-bold tracking-tight ${fredoka.className}`}
           >
             HERBAL CARE®
           </div>
@@ -574,7 +569,7 @@ export default function CartPage() {
         </div>
       </header>
 
-      <div className="container mx-auto px-6 lg:px-12 py-12">
+      <div className="container mx-auto px-4 lg:px-8 py-8">
         <div className="mb-8 text-center">
           <div className="inline-flex items-center gap-2 bg-[#1F3A2B]/10 px-4 py-2 rounded-full mb-4">
             <Sparkles className="w-4 h-4 text-[#1F3A2B]" />
@@ -583,15 +578,15 @@ export default function CartPage() {
             </span>
           </div>
           <h1
-            className={`text-4xl lg:text-5xl font-bold text-gray-900 mb-4 ${fredoka.className}`}
+            className={`text-3xl lg:text-4xl font-bold text-gray-900 mb-4 ${fredoka.className}`}
           >
             Produk <span className="text-[#1F3A2B]">Pilihan Anda</span>
           </h1>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
           {/* --- LEFT COLUMN: ITEMS & FORMS (Span 7) --- */}
-          <div className="lg:col-span-7 space-y-10">
+          <div className="lg:col-span-7 space-y-8">
             {/* 1. List Barang (Editable) */}
             <div className="space-y-6">
               {groupedCartItems.map((group) => {
@@ -599,24 +594,24 @@ export default function CartPage() {
                 return (
                   <div
                     key={`group-${common.id}`}
-                    className="bg-white rounded-3xl p-6 shadow-sm border border-[#1F3A2B]/10 hover:shadow-md transition-shadow"
+                    className="bg-white rounded-2xl p-6 shadow-sm border border-[#1F3A2B]/10 hover:shadow-md transition-all"
                   >
                     <div className="flex flex-col sm:flex-row gap-6">
-                      <div className="relative w-full sm:w-28 h-36 sm:h-28 flex-shrink-0 self-start">
+                      <div className="relative w-full sm:w-24 h-32 sm:h-24 flex-shrink-0 self-start">
                         <Image
                           src={getImageUrlFromProduct(common)}
                           alt={common.name}
                           fill
-                          className="object-cover rounded-2xl"
+                          className="object-cover rounded-xl"
                         />
                       </div>
 
                       <div className="flex-1">
                         <div className="mb-4 border-b border-[#1F3A2B]/10 pb-2">
-                          <span className="text-sm text-[#1F3A2B]/60 font-medium">
+                          <span className="text-xs text-[#1F3A2B]/60 font-medium uppercase tracking-wider">
                             {common.category_name}
                           </span>
-                          <h3 className="text-lg font-bold text-[#1F3A2B] mt-1">
+                          <h3 className="text-base font-bold text-[#1F3A2B] mt-1">
                             {common.name}
                           </h3>
                         </div>
@@ -654,7 +649,7 @@ export default function CartPage() {
                                       </span>
                                     )}
                                   </div>
-                                  <div className="text-base font-bold text-[#1F3A2B]">
+                                  <div className="text-sm font-bold text-[#1F3A2B]">
                                     Rp{" "}
                                     {(item.price * 1).toLocaleString("id-ID")}
                                   </div>
@@ -662,13 +657,13 @@ export default function CartPage() {
 
                                 {/* Controls */}
                                 <div className="flex items-center gap-3 justify-between sm:justify-end w-full sm:w-auto">
-                                  <div className="flex items-center bg-white border border-[#1F3A2B]/20 rounded-xl shadow-sm">
+                                  <div className="flex items-center bg-white border border-[#1F3A2B]/20 rounded-full shadow-sm">
                                     <button
                                       onClick={() =>
                                         decreaseItemQuantity(item.cartId)
                                       }
                                       disabled={!inStock}
-                                      className="p-1.5 hover:bg-[#1F3A2B]/5 rounded-l-xl transition-colors disabled:opacity-50 text-[#1F3A2B]"
+                                      className="p-1.5 hover:bg-[#1F3A2B]/5 rounded-l-full transition-colors disabled:opacity-50 text-[#1F3A2B]"
                                     >
                                       <Minus className="w-3.5 h-3.5" />
                                     </button>
@@ -676,14 +671,14 @@ export default function CartPage() {
                                       type="number"
                                       value={item.quantity}
                                       readOnly
-                                      className="w-10 px-1 py-1 text-center bg-transparent text-sm focus:outline-none disabled:opacity-50 pointer-events-none text-[#1F3A2B] font-medium"
+                                      className="w-8 px-1 py-1 text-center bg-transparent text-sm focus:outline-none disabled:opacity-50 pointer-events-none text-[#1F3A2B] font-medium"
                                     />
                                     <button
                                       onClick={() =>
                                         increaseItemQuantity(item.cartId)
                                       }
                                       disabled={!inStock}
-                                      className="p-1.5 hover:bg-[#1F3A2B]/5 rounded-r-xl transition-colors disabled:opacity-50 text-[#1F3A2B]"
+                                      className="p-1.5 hover:bg-[#1F3A2B]/5 rounded-r-full transition-colors disabled:opacity-50 text-[#1F3A2B]"
                                     >
                                       <Plus className="w-3.5 h-3.5" />
                                     </button>
@@ -725,7 +720,7 @@ export default function CartPage() {
             {/* 2. Informasi Kontak & Pengiriman */}
             <section>
               <h2
-                className={`text-xl font-bold mb-6 flex items-center gap-2 ${fredoka.className}`}
+                className={`text-lg font-bold mb-6 flex items-center gap-2 ${fredoka.className}`}
               >
                 Informasi Pengiriman
               </h2>
@@ -749,7 +744,7 @@ export default function CartPage() {
                     </label>
                     <input
                       type="text"
-                      className={`w-full bg-transparent border-b border-[#1F3A2B]/20 py-2 text-lg focus:outline-none focus:border-[#1F3A2B] transition-colors placeholder:text-[#1F3A2B]/30 ${
+                      className={`w-full bg-transparent border-b border-[#1F3A2B]/20 py-2 text-sm focus:outline-none focus:border-[#1F3A2B] transition-colors placeholder:text-[#1F3A2B]/30 ${
                         hasDefaultAddress ? "cursor-not-allowed opacity-60" : ""
                       }`}
                       placeholder="Nama Anda"
@@ -766,7 +761,7 @@ export default function CartPage() {
                     </label>
                     <input
                       type="tel"
-                      className={`w-full bg-transparent border-b border-[#1F3A2B]/20 py-2 text-lg focus:outline-none focus:border-[#1F3A2B] transition-colors placeholder:text-[#1F3A2B]/30 ${
+                      className={`w-full bg-transparent border-b border-[#1F3A2B]/20 py-2 text-sm focus:outline-none focus:border-[#1F3A2B] transition-colors placeholder:text-[#1F3A2B]/30 ${
                         hasDefaultAddress ? "cursor-not-allowed opacity-60" : ""
                       }`}
                       placeholder="08xxxxxxxx"
@@ -791,7 +786,7 @@ export default function CartPage() {
                     </label>
                     <input
                       type="email"
-                      className="w-full bg-transparent border-b border-[#1F3A2B]/20 py-2 text-lg focus:outline-none focus:border-[#1F3A2B] transition-colors placeholder:text-[#1F3A2B]/30"
+                      className="w-full bg-transparent border-b border-[#1F3A2B]/20 py-2 text-sm focus:outline-none focus:border-[#1F3A2B] transition-colors placeholder:text-[#1F3A2B]/30"
                       placeholder="email@anda.com"
                       value={shippingInfo.email}
                       onChange={(e) =>
@@ -884,7 +879,7 @@ export default function CartPage() {
                     </label>
                     <input
                       type="text"
-                      className="w-full border border-[#1F3A2B]/20 rounded-md px-3 py-2 focus:outline-none focus:border-[#1F3A2B] bg-[#FDFBF7] transition-colors"
+                      className="w-full border border-[#1F3A2B]/20 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1F3A2B] bg-[#FDFBF7] transition-colors"
                       placeholder="12345"
                       value={shippingInfo.postal_code}
                       onChange={(e) =>
@@ -900,7 +895,7 @@ export default function CartPage() {
                     Detail Alamat (Jalan, RT/RW, No. Rumah)
                   </label>
                   <textarea
-                    className="w-full border border-[#1F3A2B]/20 rounded-md px-3 py-2 focus:outline-none focus:border-[#1F3A2B] bg-[#FDFBF7] transition-colors"
+                    className="w-full border border-[#1F3A2B]/20 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1F3A2B] bg-[#FDFBF7] transition-colors"
                     rows={2}
                     placeholder="Nama jalan, gedung, nomor rumah..."
                     value={shippingInfo.address_line_1}
@@ -917,7 +912,7 @@ export default function CartPage() {
                   </label>
                   <input
                     type="text"
-                    className="w-full border border-[#1F3A2B]/20 rounded-md px-3 py-2 focus:outline-none focus:border-[#1F3A2B] bg-[#FDFBF7] transition-colors"
+                    className="w-full border border-[#1F3A2B]/20 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1F3A2B] bg-[#FDFBF7] transition-colors"
                     placeholder="Blok, Patokan, dll"
                     value={shippingInfo.address_line_2}
                     onChange={(e) =>
@@ -933,7 +928,7 @@ export default function CartPage() {
             <section>
               <div className="flex justify-between items-center mb-6">
                 <h2
-                  className={`text-xl font-bold ${fredoka.className} flex items-center gap-2`}
+                  className={`text-lg font-bold ${fredoka.className} flex items-center gap-2`}
                 >
                   Metode Pengiriman
                 </h2>
@@ -949,7 +944,7 @@ export default function CartPage() {
                     }}
                     disabled={!shippingInfo.rajaongkir_district_id}
                   >
-                    <SelectTrigger className="h-9 w-full text-sm bg-white border-[#1F3A2B]/20">
+                    <SelectTrigger className="h-10 w-full text-sm bg-white border-[#1F3A2B]/20 rounded-xl">
                       <SelectValue placeholder="Pilih Kurir" />
                     </SelectTrigger>
                     <SelectContent>
@@ -962,7 +957,7 @@ export default function CartPage() {
                 </div>
               </div>
 
-              <div className="bg-white border border-[#1F3A2B]/10 rounded-xl overflow-hidden shadow-sm">
+              <div className="bg-white border border-[#1F3A2B]/10 rounded-2xl overflow-hidden shadow-sm">
                 {isShippingLoading ? (
                   <div className="p-8 flex justify-center text-[#1F3A2B]">
                     <DotdLoader />
@@ -992,14 +987,14 @@ export default function CartPage() {
                         />
                         <div className="flex-1">
                           <div className="flex justify-between items-center mb-1">
-                            <span className="font-bold flex items-center gap-2 text-[#1F3A2B]">
+                            <span className="font-bold flex items-center gap-2 text-[#1F3A2B] text-sm">
                               <Truck size={16} /> {opt.service}
                             </span>
-                            <span className="font-bold">
+                            <span className="font-bold text-sm">
                               Rp {opt.cost.toLocaleString("id-ID")}
                             </span>
                           </div>
-                          <p className="text-sm text-[#1F3A2B]/60">
+                          <p className="text-xs text-[#1F3A2B]/60">
                             {opt.description} • Estimasi {opt.etd}
                           </p>
                         </div>
@@ -1013,13 +1008,13 @@ export default function CartPage() {
             {/* 4. Metode Pembayaran */}
             <section>
               <h2
-                className={`text-xl font-bold mb-6 ${fredoka.className} flex items-center gap-2`}
+                className={`text-lg font-bold mb-6 ${fredoka.className} flex items-center gap-2`}
               >
                 Metode Pembayaran
               </h2>
-              <div className="bg-white border border-[#1F3A2B]/10 rounded-xl overflow-hidden shadow-sm divide-y divide-[#1F3A2B]/5">
+              <div className="bg-white border border-[#1F3A2B]/10 rounded-2xl overflow-hidden shadow-sm divide-y divide-[#1F3A2B]/5">
                 {/* Option: Automatic */}
-                <label className="flex items-center p-4 cursor-pointer hover:bg-[#1F3A2B]/5 transition">
+                <label className="flex items-center p-5 cursor-pointer hover:bg-[#1F3A2B]/5 transition">
                   <input
                     type="radio"
                     name="payment"
@@ -1028,17 +1023,17 @@ export default function CartPage() {
                     onChange={() => setPaymentType("automatic")}
                   />
                   <div>
-                    <span className="font-bold block mb-1 text-[#1F3A2B]">
+                    <span className="font-bold block mb-1 text-sm text-[#1F3A2B]">
                       Pembayaran Otomatis
                     </span>
-                    <span className="text-sm text-[#1F3A2B]/60">
+                    <span className="text-xs text-[#1F3A2B]/60">
                       QRIS, Virtual Account, E-Wallet (Proses Instan)
                     </span>
                   </div>
                 </label>
 
                 {/* Option: Manual */}
-                <label className="flex items-center p-4 cursor-pointer hover:bg-[#1F3A2B]/5 transition">
+                <label className="flex items-center p-5 cursor-pointer hover:bg-[#1F3A2B]/5 transition">
                   <input
                     type="radio"
                     name="payment"
@@ -1047,10 +1042,10 @@ export default function CartPage() {
                     onChange={() => setPaymentType("manual")}
                   />
                   <div>
-                    <span className="font-bold block mb-1 text-[#1F3A2B]">
+                    <span className="font-bold block mb-1 text-sm text-[#1F3A2B]">
                       Transfer Manual
                     </span>
-                    <span className="text-sm text-[#1F3A2B]/60">
+                    <span className="text-xs text-[#1F3A2B]/60">
                       Konfirmasi via WhatsApp Admin setelah transfer
                     </span>
                   </div>
@@ -1097,11 +1092,11 @@ export default function CartPage() {
                     </div>
                   )}
                   <div className="pt-4 mt-2 border-t border-white/10 flex justify-between items-end">
-                    <span className="text-lg font-bold text-white/90">
+                    <span className="text-base font-bold text-white/90">
                       Total Bayar
                     </span>
                     <span
-                      className={`text-3xl font-bold text-[#DFF19D] ${fredoka.className}`}
+                      className={`text-xl font-bold text-[#DFF19D] ${fredoka.className}`}
                     >
                       Rp {total.toLocaleString("id-ID")}
                     </span>
@@ -1133,7 +1128,7 @@ export default function CartPage() {
                     !paymentType ||
                     (!isLoggedIn && !isEmailValid)
                   }
-                  className="w-full bg-[#DFF19D] text-[#1F3A2B] py-4 rounded-xl font-bold hover:bg-white hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-2 group"
+                  className="w-full bg-[#DFF19D] text-[#1F3A2B] py-3.5 rounded-xl font-bold hover:bg-white hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-2 group text-sm"
                 >
                   {isCheckingOut || isSubmitting ? (
                     <>
@@ -1142,7 +1137,7 @@ export default function CartPage() {
                   ) : (
                     <>
                       BAYAR SEKARANG
-                      <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                      <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                     </>
                   )}
                 </button>
@@ -1170,7 +1165,7 @@ export default function CartPage() {
         {/* --- BOTTOM SECTION: RELATED PRODUCTS --- */}
         <div className="mt-20 border-t border-[#1F3A2B]/10 pt-12">
           <h2
-            className={`text-2xl font-bold text-gray-900 mb-8 text-center ${fredoka.className}`}
+            className={`text-xl font-bold text-gray-900 mb-8 text-center ${fredoka.className}`}
           >
             Lengkapi Koleksi Anda
           </h2>
@@ -1201,10 +1196,10 @@ export default function CartPage() {
                         {product.rating > 0 ? product.rating.toFixed(1) : "New"}
                       </span>
                     </div>
-                    <h3 className="text-lg font-bold text-[#1F3A2B] mb-1 line-clamp-2">
+                    <h3 className="text-base font-bold text-[#1F3A2B] mb-1 line-clamp-2">
                       {product.name}
                     </h3>
-                    <p className="text-[#1F3A2B]/60 text-sm mb-4">
+                    <p className="text-[#1F3A2B]/60 text-xs mb-4 uppercase tracking-wider">
                       {product.category}
                     </p>
                     <div className="flex items-center justify-between">
