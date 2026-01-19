@@ -4,7 +4,6 @@ import CategoryHighlights from '@/components/CategoryHighlights'
 import BestSellers from '@/components/BestSellers'
 import BrandStory from '@/components/BrandStory'
 import ShopByConcern from '@/components/ShopByConcern'
-import Footer from '@/components/Footer'
 
 export default function HomePage() {
   return (
@@ -13,7 +12,6 @@ export default function HomePage() {
       <BestSellers />
       <BrandStory />
       <ShopByConcern />
-      <Footer />
     </div>
   )
 } 

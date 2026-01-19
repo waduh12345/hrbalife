@@ -125,7 +125,7 @@ export default function VoucherPicker({ selected, onChange }: Props) {
         <div className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-neutral-100">
           <Tag className="h-4 w-4 text-neutral-700" />
         </div>
-        <h3 className="text-sm font-semibold text-neutral-900">Voucher</h3>
+        <h3 className="text-sm font-semibold text-white">Voucher</h3>
       </div>
 
       {/* Trigger */}

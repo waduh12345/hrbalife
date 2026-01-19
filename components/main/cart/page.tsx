@@ -13,7 +13,7 @@ import {
   CheckCircle,
   Sparkles,
   Package,
-  Shield,
+  ShieldCheck, // Updated icon
   Truck,
   Star,
   Upload,
@@ -21,6 +21,8 @@ import {
   ExternalLink,
   Layers,
   Maximize2,
+  ChevronRight, // Updated icon
+  MapPin, // Updated icon
 } from "lucide-react";
 import { Product } from "@/types/admin/product";
 import { useGetProductListQuery } from "@/services/product.service";
@@ -53,7 +55,8 @@ import { useCheckout } from "@/hooks/use-checkout";
 import VariantPickerModal from "@/components/variant-picker-modal";
 import VoucherPicker from "@/components/voucher-picker";
 import type { Voucher } from "@/types/voucher";
-import useCart, { CartItem } from "@/hooks/use-cart"; // Import useCart
+import useCart, { CartItem } from "@/hooks/use-cart";
+import { fredoka, sniglet } from "@/lib/fonts"; // Fonts from UI reference
 
 // Definisi Tipe Pembayaran
 type PaymentType = "automatic" | "manual" | "cod";
@@ -67,6 +70,12 @@ interface RelatedProductView {
   rating: number;
   category: string;
   __raw: Product;
+}
+
+// Interface Helper untuk Region agar tidak any
+interface RegionData {
+  id: number;
+  name: string;
 }
 
 interface ShippingCostOption {
@@ -140,8 +149,10 @@ const INTERNATIONAL_SHIPPING_OPTIONS: ShippingCostOption[] = [
   },
 ];
 
-function getImageUrlFromProduct(p: Product): string {
+function getImageUrlFromProduct(p: Product | CartItem): string {
   if (typeof p.image === "string" && p.image) return p.image;
+  if (p.image && typeof p.image === "string") return p.image;
+
   const media = (p as unknown as { media?: Array<{ original_url: string }> })
     ?.media;
   if (Array.isArray(media) && media[0]?.original_url)
@@ -187,19 +198,18 @@ export default function CartPage() {
     increaseItemQuantity,
     decreaseItemQuantity,
     clearCart,
+    addItem, // Added for related products
   } = useCart();
 
   // --- GROUPING LOGIC ---
-  // Mengelompokkan item berdasarkan Product ID agar tampil dalam satu kartu
-  // Struktur: { [productId]: { common: ProductInfo, items: [Variant1, Variant2] } }
   const groupedCartItems = useMemo(() => {
     const groups: Record<number, { common: CartItem; items: CartItem[] }> = {};
 
     cartItems.forEach((item) => {
       if (!groups[item.id]) {
         groups[item.id] = {
-          common: item, // Data umum produk (nama, gambar, kategori) diambil dari item pertama
-          items: [], // Array untuk varian/size spesifik
+          common: item,
+          items: [],
         };
       }
       groups[item.id].items.push(item);
@@ -299,8 +309,8 @@ export default function CartPage() {
       isLoggedIn
         ? true
         : shippingInfo.email
-        ? validateEmail(shippingInfo.email)
-        : false
+          ? validateEmail(shippingInfo.email)
+          : false,
     );
   }, [shippingInfo.email, isLoggedIn]);
 
@@ -313,7 +323,7 @@ export default function CartPage() {
     paginate: 100,
   });
   const defaultAddress: Address | undefined = userAddressList?.data?.find(
-    (a) => a.is_default
+    (a) => a.is_default,
   );
   const didPrefill = useRef(false);
 
@@ -353,7 +363,7 @@ export default function CartPage() {
     useGetProvincesQuery();
   const { data: cities = [], isLoading: loadingCity } = useGetCitiesQuery(
     shippingInfo.rajaongkir_province_id,
-    { skip: !shippingInfo.rajaongkir_province_id }
+    { skip: !shippingInfo.rajaongkir_province_id },
   );
   const { data: districts = [], isLoading: loadingDistrict } =
     useGetDistrictsQuery(shippingInfo.rajaongkir_city_id, {
@@ -391,7 +401,7 @@ export default function CartPage() {
         shippingCourier === "cod" ||
         shippingCourier === "international",
       refetchOnMountOrArgChange: true,
-    }
+    },
   );
 
   const shippingOptions = getShippingOptions();
@@ -433,7 +443,7 @@ export default function CartPage() {
 
   const subtotal = cartItems.reduce(
     (sum, it) => sum + it.price * it.quantity,
-    0
+    0,
   );
 
   const discount = useMemo(() => {
@@ -457,17 +467,20 @@ export default function CartPage() {
 
   const total = Math.max(0, subtotal - discount + shippingCost + codFee);
 
+  // --- EMPTY STATE ---
   if (cartItems.length === 0) {
     return (
-      <div className="min-h-screen w-full bg-gradient-to-br from-white to-[#6B6B6B]/10 pt-12 pb-20">
+      <div
+        className={`min-h-screen w-full bg-gradient-to-br from-white to-[#1F3A2B]/10 pt-20 pb-20 ${sniglet.className}`}
+      >
         <div className="container mx-auto px-6 lg:px-12">
           {/* --- EMPTY STATE SECTION --- */}
           <div className="max-w-2xl mx-auto text-center py-16">
-            <div className="w-32 h-32 bg-[#6B6B6B]/10 rounded-full flex items-center justify-center mx-auto mb-8">
-              <ShoppingCart className="w-16 h-16 text-[#6B6B6B]" />
+            <div className="w-32 h-32 bg-[#1F3A2B]/10 rounded-full flex items-center justify-center mx-auto mb-8">
+              <ShoppingCart className="w-16 h-16 text-[#1F3A2B]" />
             </div>
 
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            <h1 className="text-4xl font-bold text-[#1F3A2B] mb-4">
               Keranjang Kosong
             </h1>
 
@@ -478,15 +491,61 @@ export default function CartPage() {
 
             <a
               href="/product"
-              className="inline-flex bg-[#6B6B6B] text-white px-8 py-4 rounded-2xl font-semibold hover:bg-[#6B6B6B]/90 transition-colors items-center gap-2 shadow-lg hover:shadow-xl"
+              className="inline-flex bg-[#1F3A2B] text-white px-8 py-4 rounded-2xl font-semibold hover:bg-[#1F3A2B]/90 transition-colors items-center gap-2 shadow-lg hover:shadow-xl"
             >
               <ArrowLeft className="w-5 h-5" />
               Mulai Berbelanja
             </a>
           </div>
 
-          {/* --- RECOMMENDATION SECTION (tetap sama) --- */}
-          {/* ... (Code rekomendasi di sini tetap sama, tidak berubah) ... */}
+          {/* --- RECOMMENDATION SECTION (Using Related Logic from Old Page) --- */}
+          <div className="mt-16">
+            <h2
+              className={`text-2xl font-bold text-gray-900 mb-6 ${fredoka.className}`}
+            >
+              Produk Rekomendasi
+            </h2>
+            {isRelLoading && (
+              <div className="text-[#1F3A2B] w-full flex items-center justify-center min-h-96">
+                <DotdLoader />
+              </div>
+            )}
+            {!isRelLoading && !isRelError && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {relatedProducts.map((product) => (
+                  <div
+                    key={product.id}
+                    className="bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 group border border-[#1F3A2B]/5"
+                  >
+                    <div className="relative h-48">
+                      <Image
+                        src={product.image}
+                        alt={product.name}
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    </div>
+                    <div className="p-6">
+                      <h3 className="text-lg font-bold text-[#1F3A2B] mt-1 mb-3 line-clamp-2">
+                        {product.name}
+                      </h3>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() =>
+                            addItem({ ...product.__raw, quantity: 1 }, 0)
+                          }
+                          className="w-full bg-[#1F3A2B] text-white py-3 rounded-2xl font-semibold hover:bg-[#1F3A2B]/90 transition-colors flex items-center justify-center gap-2"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Tambah
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -494,690 +553,680 @@ export default function CartPage() {
 
   // --- MAIN CONTENT ---
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white to-[#DFF19D]/10 pt-12">
-      <div className="container mx-auto px-6 lg:px-12 pb-12">
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-6">
-            <a
-              href="/product"
-              className="flex items-center gap-2 text-gray-600 hover:text-[#6B6B6B] transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5" />
-              Lanjut Belanja
-            </a>
+    <div
+      className={`min-h-screen bg-[#FDFBF7] text-[#1F3A2B] pt-24 ${sniglet.className}`}
+    >
+      {/* Header Simple for Cart */}
+      <header className="border-b border-[#1F3A2B]/10 bg-white fixed top-0 w-full z-40 shadow-sm">
+        <div className="container mx-auto px-6 h-20 flex items-center justify-between">
+          <button
+            onClick={() => router.back()}
+            className="flex items-center gap-2 text-sm font-bold hover:text-[#1F3A2B]/70 transition"
+          >
+            <ArrowLeft className="w-5 h-5" /> KEMBALI
+          </button>
+          <div
+            className={`text-2xl font-bold tracking-tight ${fredoka.className}`}
+          >
+            HERBAL CARE®
           </div>
-          <div className="text-center">
-            <div className="inline-flex items-center gap-2 bg-[#6B6B6B]/10 px-4 py-2 rounded-full mb-4">
-              <Sparkles className="w-4 h-4 text-[#6B6B6B]" />
-              <span className="text-sm font-medium text-[#6B6B6B]">
-                Keranjang Belanja
-              </span>
-            </div>
-            <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-              Produk <span className="text-[#6B6B6B]">Pilihan Anda</span>
-            </h1>
-            <p className="text-gray-600 max-w-2xl mx-auto">
-              Review produk favorit dan lanjutkan untuk mendapatkan pengalaman
-              berkreasi terbaik untuk si kecil
-            </p>
+          <div className="w-20" />
+        </div>
+      </header>
+
+      <div className="container mx-auto px-6 lg:px-12 py-12">
+        <div className="mb-8 text-center">
+          <div className="inline-flex items-center gap-2 bg-[#1F3A2B]/10 px-4 py-2 rounded-full mb-4">
+            <Sparkles className="w-4 h-4 text-[#1F3A2B]" />
+            <span className="text-sm font-medium text-[#1F3A2B]">
+              Keranjang Belanja
+            </span>
           </div>
+          <h1
+            className={`text-4xl lg:text-5xl font-bold text-gray-900 mb-4 ${fredoka.className}`}
+          >
+            Produk <span className="text-[#1F3A2B]">Pilihan Anda</span>
+          </h1>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-6">
-            {/* LOOPING GROUPED ITEMS 
-              Kita looping berdasarkan Product ID (group) agar tampilan rapi,
-              lalu di dalam card produk tersebut kita looping variants/items yang dipilih.
-            */}
-            {groupedCartItems.map((group) => {
-              const { common, items } = group;
-              return (
-                <div
-                  key={`group-${common.id}`}
-                  className="bg-white rounded-3xl p-6 shadow-lg hover:shadow-xl transition-shadow"
-                >
-                  <div className="flex flex-col sm:flex-row gap-6">
-                    {/* Gambar Produk (Hanya Muncul Sekali per Produk Group) */}
-                    <div className="relative w-full sm:w-32 h-48 sm:h-32 flex-shrink-0 self-start">
-                      <Image
-                        src={getImageUrlFromProduct(common)}
-                        alt={common.name}
-                        fill
-                        className="object-cover rounded-2xl"
-                      />
-                    </div>
-
-                    <div className="flex-1">
-                      <div className="mb-4 border-b border-gray-100 pb-2">
-                        <span className="text-sm text-[#6B6B6B] font-medium">
-                          {common.category_name}
-                        </span>
-                        <h3 className="text-lg font-bold text-gray-900 mt-1">
-                          {common.name}
-                        </h3>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+          {/* --- LEFT COLUMN: ITEMS & FORMS (Span 7) --- */}
+          <div className="lg:col-span-7 space-y-10">
+            {/* 1. List Barang (Editable) */}
+            <div className="space-y-6">
+              {groupedCartItems.map((group) => {
+                const { common, items } = group;
+                return (
+                  <div
+                    key={`group-${common.id}`}
+                    className="bg-white rounded-3xl p-6 shadow-sm border border-[#1F3A2B]/10 hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex flex-col sm:flex-row gap-6">
+                      <div className="relative w-full sm:w-28 h-36 sm:h-28 flex-shrink-0 self-start">
+                        <Image
+                          src={getImageUrlFromProduct(common)}
+                          alt={common.name}
+                          fill
+                          className="object-cover rounded-2xl"
+                        />
                       </div>
 
-                      {/* LIST VARIANT / ITEM YANG DIPILIH 
-                        Di sini kita render baris per cartId (varian/size unik)
-                      */}
-                      <div className="space-y-4">
-                        {items.map((item) => {
-                          const currentStock =
-                            typeof item.stock === "number" ? item.stock : 0;
-                          const inStock = currentStock > 0;
+                      <div className="flex-1">
+                        <div className="mb-4 border-b border-[#1F3A2B]/10 pb-2">
+                          <span className="text-sm text-[#1F3A2B]/60 font-medium">
+                            {common.category_name}
+                          </span>
+                          <h3 className="text-lg font-bold text-[#1F3A2B] mt-1">
+                            {common.name}
+                          </h3>
+                        </div>
 
-                          return (
-                            <div
-                              key={item.cartId}
-                              className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-gray-50 p-3 rounded-xl border border-gray-100"
-                            >
-                              {/* Kiri: Info Varian & Harga */}
-                              <div className="flex-1">
-                                <div className="flex flex-wrap gap-2 mb-1">
-                                  {item.variant_name && (
-                                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white border border-gray-200 text-xs font-medium text-gray-700 shadow-sm">
-                                      <Layers className="w-3 h-3 text-gray-500" />
-                                      <span>{item.variant_name}</span>
-                                    </div>
-                                  )}
-                                  {item.size_name && (
-                                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white border border-gray-200 text-xs font-medium text-gray-700 shadow-sm">
-                                      <Maximize2 className="w-3 h-3 text-gray-500" />
-                                      <span>{item.size_name}</span>
-                                    </div>
-                                  )}
-                                  {/* Jika tidak ada varian/size, tampilkan default atau kosongkan */}
-                                  {!item.variant_name && !item.size_name && (
-                                    <span className="text-xs text-gray-400 italic">
-                                      Default
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="text-base font-bold text-[#6B6B6B]">
-                                  Rp {(item.price * 1).toLocaleString("id-ID")}
-                                </div>
-                              </div>
+                        {/* List Variants Editable */}
+                        <div className="space-y-4">
+                          {items.map((item) => {
+                            const currentStock =
+                              typeof item.stock === "number" ? item.stock : 0;
+                            const inStock = currentStock > 0;
 
-                              {/* Kanan: Controls (Qty & Delete) */}
-                              <div className="flex items-center gap-3 justify-between sm:justify-end w-full sm:w-auto">
-                                <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-sm">
-                                  <button
-                                    onClick={() =>
-                                      decreaseItemQuantity(item.cartId)
-                                    }
-                                    disabled={!inStock}
-                                    className="p-1.5 hover:bg-gray-100 rounded-l-xl transition-colors disabled:opacity-50 text-gray-600"
-                                  >
-                                    <Minus className="w-3.5 h-3.5" />
-                                  </button>
-                                  <input
-                                    type="number"
-                                    value={item.quantity}
-                                    readOnly
-                                    className="w-10 px-1 py-1 text-center bg-transparent text-sm focus:outline-none disabled:opacity-50 pointer-events-none text-gray-900 font-medium"
-                                  />
-                                  <button
-                                    onClick={() =>
-                                      increaseItemQuantity(item.cartId)
-                                    }
-                                    disabled={!inStock}
-                                    className="p-1.5 hover:bg-gray-100 rounded-r-xl transition-colors disabled:opacity-50 text-gray-600"
-                                  >
-                                    <Plus className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-
-                                <div className="text-right min-w-[80px]">
-                                  <div className="font-bold text-gray-900 text-sm">
-                                    Rp{" "}
-                                    {(
-                                      item.price * item.quantity
-                                    ).toLocaleString("id-ID")}
+                            return (
+                              <div
+                                key={item.cartId}
+                                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-[#FDFBF7] p-3 rounded-xl border border-[#1F3A2B]/10"
+                              >
+                                {/* Info Varian */}
+                                <div className="flex-1">
+                                  <div className="flex flex-wrap gap-2 mb-1">
+                                    {item.variant_name && (
+                                      <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white border border-[#1F3A2B]/10 text-xs font-medium text-[#1F3A2B] shadow-sm">
+                                        <Layers className="w-3 h-3 text-[#1F3A2B]/60" />
+                                        <span>{item.variant_name}</span>
+                                      </div>
+                                    )}
+                                    {item.size_name && (
+                                      <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white border border-[#1F3A2B]/10 text-xs font-medium text-[#1F3A2B] shadow-sm">
+                                        <Maximize2 className="w-3 h-3 text-[#1F3A2B]/60" />
+                                        <span>{item.size_name}</span>
+                                      </div>
+                                    )}
+                                    {!item.variant_name && !item.size_name && (
+                                      <span className="text-xs text-gray-400 italic">
+                                        Default
+                                      </span>
+                                    )}
                                   </div>
-                                  {!inStock && (
-                                    <div className="text-[10px] text-red-500 font-medium">
-                                      Stok Habis
-                                    </div>
-                                  )}
+                                  <div className="text-base font-bold text-[#1F3A2B]">
+                                    Rp{" "}
+                                    {(item.price * 1).toLocaleString("id-ID")}
+                                  </div>
                                 </div>
 
-                                <button
-                                  onClick={() => removeItem(item.cartId)}
-                                  className="p-2 text-gray-400 hover:text-red-500 transition-colors bg-white rounded-full shadow-sm hover:shadow-md border border-transparent hover:border-red-100"
-                                  title="Hapus varian ini"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
+                                {/* Controls */}
+                                <div className="flex items-center gap-3 justify-between sm:justify-end w-full sm:w-auto">
+                                  <div className="flex items-center bg-white border border-[#1F3A2B]/20 rounded-xl shadow-sm">
+                                    <button
+                                      onClick={() =>
+                                        decreaseItemQuantity(item.cartId)
+                                      }
+                                      disabled={!inStock}
+                                      className="p-1.5 hover:bg-[#1F3A2B]/5 rounded-l-xl transition-colors disabled:opacity-50 text-[#1F3A2B]"
+                                    >
+                                      <Minus className="w-3.5 h-3.5" />
+                                    </button>
+                                    <input
+                                      type="number"
+                                      value={item.quantity}
+                                      readOnly
+                                      className="w-10 px-1 py-1 text-center bg-transparent text-sm focus:outline-none disabled:opacity-50 pointer-events-none text-[#1F3A2B] font-medium"
+                                    />
+                                    <button
+                                      onClick={() =>
+                                        increaseItemQuantity(item.cartId)
+                                      }
+                                      disabled={!inStock}
+                                      className="p-1.5 hover:bg-[#1F3A2B]/5 rounded-r-xl transition-colors disabled:opacity-50 text-[#1F3A2B]"
+                                    >
+                                      <Plus className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+
+                                  <div className="text-right min-w-[80px]">
+                                    <div className="font-bold text-[#1F3A2B] text-sm">
+                                      Rp{" "}
+                                      {(
+                                        item.price * item.quantity
+                                      ).toLocaleString("id-ID")}
+                                    </div>
+                                    {!inStock && (
+                                      <div className="text-[10px] text-red-500 font-medium">
+                                        Stok Habis
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <button
+                                    onClick={() => removeItem(item.cartId)}
+                                    className="p-2 text-[#1F3A2B]/40 hover:text-red-500 transition-colors bg-white rounded-full shadow-sm hover:shadow-md border border-transparent hover:border-red-100"
+                                    title="Hapus varian ini"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
                               </div>
-                            </div>
-                          );
-                        })}
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
 
-            {/* --- SHIPPING INFO SECTION --- */}
-            <div className="bg-white rounded-3xl p-6 shadow-lg">
-              <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <Truck className="w-5 h-5 text-[#6B6B6B]" />
+            {/* 2. Informasi Kontak & Pengiriman */}
+            <section>
+              <h2
+                className={`text-xl font-bold mb-6 flex items-center gap-2 ${fredoka.className}`}
+              >
                 Informasi Pengiriman
-              </h3>
+              </h2>
 
               {hasDefaultAddress && (
-                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-5 h-5 text-blue-600" />
                     <p className="text-sm text-blue-800">
-                      Alamat sudah terisi otomatis dari data default Anda.
-                      <span className="font-medium">
-                        {" "}
-                        Data ini tidak dapat diubah.
-                      </span>
+                      Alamat terisi otomatis dari data default.
                     </p>
                   </div>
                 </div>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nama Lengkap *
-                  </label>
-                  <input
-                    type="text"
-                    value={shippingInfo.fullName}
-                    onChange={(e) =>
-                      handleInputChange("fullName", e.target.value)
-                    }
-                    placeholder="Masukkan nama lengkap"
-                    disabled={hasDefaultAddress}
-                    className={`w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#6B6B6B] focus:border-transparent ${
-                      hasDefaultAddress ? "bg-gray-100 cursor-not-allowed" : ""
-                    }`}
-                  />
+              <div className="p-8 border border-[#1F3A2B]/10 rounded-2xl bg-white space-y-6 shadow-sm">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold uppercase tracking-wider text-[#1F3A2B]/60">
+                      Nama Lengkap
+                    </label>
+                    <input
+                      type="text"
+                      className={`w-full bg-transparent border-b border-[#1F3A2B]/20 py-2 text-lg focus:outline-none focus:border-[#1F3A2B] transition-colors placeholder:text-[#1F3A2B]/30 ${
+                        hasDefaultAddress ? "cursor-not-allowed opacity-60" : ""
+                      }`}
+                      placeholder="Nama Anda"
+                      value={shippingInfo.fullName}
+                      onChange={(e) =>
+                        handleInputChange("fullName", e.target.value)
+                      }
+                      disabled={hasDefaultAddress}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold uppercase tracking-wider text-[#1F3A2B]/60">
+                      Nomor Telepon
+                    </label>
+                    <input
+                      type="tel"
+                      className={`w-full bg-transparent border-b border-[#1F3A2B]/20 py-2 text-lg focus:outline-none focus:border-[#1F3A2B] transition-colors placeholder:text-[#1F3A2B]/30 ${
+                        hasDefaultAddress ? "cursor-not-allowed opacity-60" : ""
+                      }`}
+                      placeholder="08xxxxxxxx"
+                      value={shippingInfo.phone}
+                      onChange={(e) =>
+                        handleInputChange("phone", e.target.value)
+                      }
+                      disabled={hasDefaultAddress}
+                    />
+                    {!isPhoneValid && shippingInfo.phone && (
+                      <p className="text-xs text-red-500 mt-1">
+                        Nomor tidak valid
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nomor Telepon *
-                  </label>
-                  <input
-                    type="tel"
-                    value={shippingInfo.phone}
-                    onChange={(e) => handleInputChange("phone", e.target.value)}
-                    placeholder="08xxxxxxxxxx"
-                    disabled={hasDefaultAddress}
-                    className={`w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#6B6B6B] focus:border-transparent ${
-                      hasDefaultAddress ? "bg-gray-100 cursor-not-allowed" : ""
-                    }`}
-                  />
-                </div>
+
                 {!isLoggedIn && (
-                  <div className="col-span-1 sm:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Email <span>*</span>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold uppercase tracking-wider text-[#1F3A2B]/60">
+                      Email Address
                     </label>
                     <input
                       type="email"
-                      value={shippingInfo.email ?? ""}
+                      className="w-full bg-transparent border-b border-[#1F3A2B]/20 py-2 text-lg focus:outline-none focus:border-[#1F3A2B] transition-colors placeholder:text-[#1F3A2B]/30"
+                      placeholder="email@anda.com"
+                      value={shippingInfo.email}
                       onChange={(e) =>
                         handleInputChange("email", e.target.value)
                       }
-                      placeholder="nama@email.com"
-                      disabled={hasDefaultAddress}
-                      className={`w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#6B6B6B] focus:border-transparent ${
-                        hasDefaultAddress
-                          ? "bg-gray-100 cursor-not-allowed"
-                          : ""
-                      }`}
                     />
+                    {!isEmailValid && shippingInfo.email && (
+                      <p className="text-xs text-red-500 mt-1">
+                        Email tidak valid
+                      </p>
+                    )}
                   </div>
                 )}
-                <div className="col-span-1 sm:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Alamat Lengkap *
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold uppercase tracking-wider text-[#1F3A2B]/60">
+                      Provinsi
+                    </label>
+                    <Combobox
+                      data={provinces}
+                      value={shippingInfo.rajaongkir_province_id || null}
+                      onChange={(id) => {
+                        setShippingInfo((prev) => ({
+                          ...prev,
+                          rajaongkir_province_id: id,
+                          rajaongkir_city_id: 0,
+                          rajaongkir_district_id: 0,
+                        }));
+                        setShippingMethod(null);
+                      }}
+                      getOptionLabel={(i: RegionData) => i.name}
+                      isLoading={loadingProvince}
+                      placeholder="Pilih Provinsi"
+                      disabled={hasDefaultAddress}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold uppercase tracking-wider text-[#1F3A2B]/60">
+                      Kota/Kabupaten
+                    </label>
+                    <Combobox
+                      data={cities}
+                      value={shippingInfo.rajaongkir_city_id || null}
+                      onChange={(id) => {
+                        setShippingInfo((prev) => ({
+                          ...prev,
+                          rajaongkir_city_id: id,
+                          rajaongkir_district_id: 0,
+                        }));
+                        setShippingMethod(null);
+                      }}
+                      getOptionLabel={(i: RegionData) => i.name}
+                      isLoading={loadingCity}
+                      placeholder="Pilih Kota"
+                      disabled={
+                        hasDefaultAddress ||
+                        !shippingInfo.rajaongkir_province_id
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold uppercase tracking-wider text-[#1F3A2B]/60">
+                      Kecamatan
+                    </label>
+                    <Combobox
+                      data={districts}
+                      value={shippingInfo.rajaongkir_district_id || null}
+                      onChange={(id) => {
+                        setShippingInfo((prev) => ({
+                          ...prev,
+                          rajaongkir_district_id: id,
+                        }));
+                        setShippingMethod(null);
+                      }}
+                      getOptionLabel={(i: RegionData) => i.name}
+                      isLoading={loadingDistrict}
+                      placeholder="Pilih Kecamatan"
+                      disabled={
+                        hasDefaultAddress || !shippingInfo.rajaongkir_city_id
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold uppercase tracking-wider text-[#1F3A2B]/60">
+                      Kode Pos
+                    </label>
+                    <input
+                      type="text"
+                      className="w-full border border-[#1F3A2B]/20 rounded-md px-3 py-2 focus:outline-none focus:border-[#1F3A2B] bg-[#FDFBF7] transition-colors"
+                      placeholder="12345"
+                      value={shippingInfo.postal_code}
+                      onChange={(e) =>
+                        handleInputChange("postal_code", e.target.value)
+                      }
+                      disabled={hasDefaultAddress}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold uppercase tracking-wider text-[#1F3A2B]/60">
+                    Detail Alamat (Jalan, RT/RW, No. Rumah)
                   </label>
                   <textarea
+                    className="w-full border border-[#1F3A2B]/20 rounded-md px-3 py-2 focus:outline-none focus:border-[#1F3A2B] bg-[#FDFBF7] transition-colors"
+                    rows={2}
+                    placeholder="Nama jalan, gedung, nomor rumah..."
                     value={shippingInfo.address_line_1}
                     onChange={(e) =>
                       handleInputChange("address_line_1", e.target.value)
                     }
-                    rows={3}
-                    placeholder="Nama jalan, RT/RW, Kelurahan"
                     disabled={hasDefaultAddress}
-                    className={`w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#6B6B6B] focus:border-transparent ${
-                      hasDefaultAddress ? "bg-gray-100 cursor-not-allowed" : ""
-                    }`}
                   />
                 </div>
-                <div className="col-span-1 sm:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Alamat (Baris 2){" "}
-                    <span className="text-gray-400">(opsional)</span>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold uppercase tracking-wider text-[#1F3A2B]/60">
+                    Detail Tambahan (Opsional)
                   </label>
                   <input
                     type="text"
+                    className="w-full border border-[#1F3A2B]/20 rounded-md px-3 py-2 focus:outline-none focus:border-[#1F3A2B] bg-[#FDFBF7] transition-colors"
+                    placeholder="Blok, Patokan, dll"
                     value={shippingInfo.address_line_2}
                     onChange={(e) =>
                       handleInputChange("address_line_2", e.target.value)
                     }
-                    placeholder="Blok, unit, patokan, dsb (opsional)"
                     disabled={hasDefaultAddress}
-                    className={`w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#6B6B6B] focus:border-transparent ${
-                      hasDefaultAddress ? "bg-gray-100 cursor-not-allowed" : ""
-                    }`}
-                  />
-                </div>
-                {shippingCourier === "jne" && (
-                  <>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Provinsi
-                      </label>
-                      <Combobox
-                        value={shippingInfo.rajaongkir_province_id}
-                        onChange={(id) => {
-                          setShippingInfo((prev) => ({
-                            ...prev,
-                            rajaongkir_province_id: id,
-                            rajaongkir_city_id: 0,
-                            rajaongkir_district_id: 0,
-                          }));
-                          setShippingMethod(null);
-                        }}
-                        data={provinces}
-                        isLoading={loadingProvince}
-                        getOptionLabel={(item) => item.name}
-                        disabled={hasDefaultAddress}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Kota / Kabupaten
-                      </label>
-                      <Combobox
-                        value={shippingInfo.rajaongkir_city_id}
-                        onChange={(id) => {
-                          setShippingInfo((prev) => ({
-                            ...prev,
-                            rajaongkir_city_id: id,
-                            rajaongkir_district_id: 0,
-                          }));
-                          setShippingMethod(null);
-                        }}
-                        data={cities}
-                        isLoading={loadingCity}
-                        getOptionLabel={(item) => item.name}
-                        disabled={
-                          hasDefaultAddress ||
-                          !shippingInfo.rajaongkir_province_id
-                        }
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Kecamatan
-                      </label>
-                      <Combobox
-                        value={shippingInfo.rajaongkir_district_id}
-                        onChange={(id) => {
-                          setShippingInfo((prev) => ({
-                            ...prev,
-                            rajaongkir_district_id: id,
-                          }));
-                          setShippingMethod(null);
-                        }}
-                        data={districts}
-                        isLoading={loadingDistrict}
-                        getOptionLabel={(item) => item.name}
-                        disabled={
-                          hasDefaultAddress || !shippingInfo.rajaongkir_city_id
-                        }
-                      />
-                    </div>
-                  </>
-                )}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Kode Pos
-                  </label>
-                  <input
-                    type="text"
-                    value={shippingInfo.postal_code}
-                    onChange={(e) =>
-                      handleInputChange("postal_code", e.target.value)
-                    }
-                    placeholder="16911"
-                    disabled={hasDefaultAddress}
-                    className={`w-full px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#6B6B6B] focus:border-transparent ${
-                      hasDefaultAddress ? "bg-gray-100 cursor-not-allowed" : ""
-                    }`}
                   />
                 </div>
               </div>
-            </div>
-          </div>
+            </section>
 
-          <div className="space-y-6">
-            <div className="bg-white rounded-3xl p-6 shadow-lg">
-              <h3 className="font-bold text-gray-900 mb-4">
-                Metode Pengiriman
-              </h3>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Pilih Kurir
-                </label>
-                <Select
-                  value={shippingCourier ?? ""}
-                  onValueChange={(val) => {
-                    setShippingCourier(val);
-                    setShippingMethod(null);
-                    if (val === "international" && paymentType === "cod") {
-                      setPaymentType("automatic");
-                    }
-                  }}
+            {/* 3. Metode Pengiriman */}
+            <section>
+              <div className="flex justify-between items-center mb-6">
+                <h2
+                  className={`text-xl font-bold ${fredoka.className} flex items-center gap-2`}
                 >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Pilih Kurir" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="jne">JNE</SelectItem>
-                    <SelectItem value="international">Luar Negeri</SelectItem>
-                  </SelectContent>
-                </Select>
+                  Metode Pengiriman
+                </h2>
+                <div className="w-48">
+                  <Select
+                    value={shippingCourier ?? ""}
+                    onValueChange={(val) => {
+                      setShippingCourier(val);
+                      setShippingMethod(null);
+                      if (val === "international" && paymentType === "cod") {
+                        setPaymentType("automatic");
+                      }
+                    }}
+                    disabled={!shippingInfo.rajaongkir_district_id}
+                  >
+                    <SelectTrigger className="h-9 w-full text-sm bg-white border-[#1F3A2B]/20">
+                      <SelectValue placeholder="Pilih Kurir" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="jne">JNE</SelectItem>
+                      <SelectItem value="international">
+                        International
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="space-y-3">
-                {shippingCourier === "jne" && (
-                  <>
-                    {isShippingLoading ? (
-                      <div className="flex justify-center items-center py-4">
-                        <DotdLoader />
-                      </div>
-                    ) : isShippingError ? (
-                      <p className="text-center text-red-500">
-                        Gagal memuat opsi pengiriman.
-                      </p>
-                    ) : shippingOptions.length > 0 ? (
-                      shippingOptions.map((option, index) => (
-                        <label
-                          key={index}
-                          className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
-                            shippingMethod?.service === option.service
-                              ? "border-[#6B6B6B] bg-[#DFF19D]/30"
-                              : "border-gray-200 hover:bg-neutral-50"
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="shipping-service"
-                            checked={shippingMethod?.service === option.service}
-                            onChange={() => setShippingMethod(option)}
-                            className="form-radio text-[#6B6B6B] h-4 w-4"
-                          />
-                          <div className="flex-1">
-                            <p className="font-medium">{option.service}</p>
-                            <p className="text-sm text-neutral-500">
-                              {option.description}
-                            </p>
-                            <p className="text-sm font-semibold">
-                              Rp {option.cost.toLocaleString("id-ID")}
-                            </p>
-                            <p className="text-xs text-neutral-400">
-                              Estimasi: {option.etd}
-                            </p>
-                          </div>
-                        </label>
-                      ))
-                    ) : (
-                      <p className="text-center text-gray-500">
-                        Pilih kecamatan untuk melihat opsi pengiriman.
-                      </p>
-                    )}
-                  </>
-                )}
-                {(shippingCourier === "cod" ||
-                  shippingCourier === "international") && (
-                  <>
-                    {shippingOptions.map((option, index) => (
+
+              <div className="bg-white border border-[#1F3A2B]/10 rounded-xl overflow-hidden shadow-sm">
+                {isShippingLoading ? (
+                  <div className="p-8 flex justify-center text-[#1F3A2B]">
+                    <DotdLoader />
+                  </div>
+                ) : !shippingCourier ? (
+                  <div className="p-8 text-center text-[#1F3A2B]/40 text-sm flex flex-col items-center gap-2">
+                    <MapPin className="w-8 h-8 opacity-50" />
+                    Silakan lengkapi alamat dan pilih kurir.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-[#1F3A2B]/5">
+                    {shippingOptions.map((opt, i) => (
                       <label
-                        key={index}
-                        className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
-                          shippingMethod?.code === option.code
-                            ? "border-[#6B6B6B] bg-[#DFF19D]/30"
-                            : "border-gray-200 hover:bg-neutral-50"
+                        key={i}
+                        className={`flex items-center p-4 cursor-pointer hover:bg-[#1F3A2B]/5 transition ${
+                          shippingMethod?.service === opt.service
+                            ? "bg-[#1F3A2B]/5"
+                            : ""
                         }`}
                       >
                         <input
                           type="radio"
-                          name="shipping-service"
-                          checked={shippingMethod?.code === option.code}
-                          onChange={() => setShippingMethod(option)}
-                          className="form-radio text-[#6B6B6B] h-4 w-4"
+                          name="shipping"
+                          className="accent-[#1F3A2B] w-5 h-5 mr-4"
+                          checked={shippingMethod?.service === opt.service}
+                          onChange={() => setShippingMethod(opt)}
                         />
                         <div className="flex-1">
-                          <p className="font-medium">{option.service}</p>
-                          <p className="text-sm text-neutral-500">
-                            {option.description}
-                          </p>
-                          <p className="text-sm font-semibold">
-                            Rp {option.cost.toLocaleString("id-ID")}
-                          </p>
-                          <p className="text-xs text-neutral-400">
-                            Estimasi: {option.etd}
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="font-bold flex items-center gap-2 text-[#1F3A2B]">
+                              <Truck size={16} /> {opt.service}
+                            </span>
+                            <span className="font-bold">
+                              Rp {opt.cost.toLocaleString("id-ID")}
+                            </span>
+                          </div>
+                          <p className="text-sm text-[#1F3A2B]/60">
+                            {opt.description} • Estimasi {opt.etd}
                           </p>
                         </div>
                       </label>
                     ))}
-                  </>
+                  </div>
                 )}
               </div>
-            </div>
+            </section>
 
-            <div className="bg-white rounded-3xl p-6 shadow-lg">
-              <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-[#6B6B6B]" />
+            {/* 4. Metode Pembayaran */}
+            <section>
+              <h2
+                className={`text-xl font-bold mb-6 ${fredoka.className} flex items-center gap-2`}
+              >
                 Metode Pembayaran
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tipe Pembayaran
-                  </label>
-                  <div className="space-y-2">
-                    <div
-                      className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
-                        paymentType === "automatic"
-                          ? "border-black bg-neutral-50"
-                          : "border-neutral-200 hover:bg-neutral-50"
-                      }`}
-                      onClick={() => setPaymentType("automatic")}
-                    >
-                      <div
-                        className={`h-4 w-4 rounded-full border flex items-center justify-center ${
-                          paymentType === "automatic"
-                            ? "border-black"
-                            : "border-neutral-400"
-                        }`}
-                      >
-                        {paymentType === "automatic" && (
-                          <div className="h-2 w-2 rounded-full bg-black" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-medium">Otomatis</p>
-                        <p className="text-sm text-gray-500">
-                          Pembayaran online (Gateway)
-                        </p>
-                      </div>
-                    </div>
-
-                    <div
-                      className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
-                        paymentType === "manual"
-                          ? "border-black bg-neutral-50"
-                          : "border-neutral-200 hover:bg-neutral-50"
-                      }`}
-                      onClick={() => setPaymentType("manual")}
-                    >
-                      <div
-                        className={`h-4 w-4 rounded-full border flex items-center justify-center ${
-                          paymentType === "manual"
-                            ? "border-black"
-                            : "border-neutral-400"
-                        }`}
-                      >
-                        {paymentType === "manual" && (
-                          <div className="h-2 w-2 rounded-full bg-black" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-medium">Manual</p>
-                        <p className="text-sm text-gray-500">
-                          Transfer Manual (Konfirmasi Admin)
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {paymentType === "automatic" && (
-                  <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl flex gap-3">
-                    <div className="mt-0.5">
-                      <ExternalLink className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div className="text-sm text-blue-800">
-                      <p className="font-semibold mb-1">Pembayaran via Doku</p>
-                      <p>
-                        Anda akan diarahkan ke halaman pembayaran aman setelah
-                        menekan tombol Checkout. Tersedia berbagai metode (QRIS,
-                        VA, E-Wallet).
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {paymentType === "manual" && (
-                  <div className="p-3 bg-neutral-100 rounded-lg border border-neutral-200">
-                    <div className="flex items-center gap-2 text-sm text-neutral-700">
-                      <Banknote className="w-4 h-4" />
-                      <span>
-                        Silakan selesaikan pesanan, admin akan menghubungi Anda.
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="bg-white rounded-3xl p-6 shadow-lg">
-              <VoucherPicker
-                selected={selectedVoucher}
-                onChange={setSelectedVoucher}
-              />
-            </div>
-
-            <div className="bg-white rounded-3xl p-6 shadow-lg">
-              <h3 className="font-bold text-gray-900 mb-4">
-                Ringkasan Pesanan
-              </h3>
-              <div className="space-y-3 mb-6">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">
-                    Subtotal ({cartItems.length} produk)
-                  </span>
-                  <span className="font-semibold">
-                    Rp {subtotal.toLocaleString("id-ID")}
-                  </span>
-                </div>
-                {discount > 0 && (
-                  <div className="flex justify-between text-green-600">
-                    <span>Diskon Voucher</span>
-                    <span>- Rp {discount.toLocaleString("id-ID")}</span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Ongkos Kirim</span>
-                  <span className="font-semibold">
-                    Rp {shippingCost.toLocaleString("id-ID")}
-                  </span>
-                </div>
-                {paymentType === "cod" && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Fee COD (2%)</span>
-                    <span className="font-semibold">
-                      Rp {codFee.toLocaleString("id-ID")}
+              </h2>
+              <div className="bg-white border border-[#1F3A2B]/10 rounded-xl overflow-hidden shadow-sm divide-y divide-[#1F3A2B]/5">
+                {/* Option: Automatic */}
+                <label className="flex items-center p-4 cursor-pointer hover:bg-[#1F3A2B]/5 transition">
+                  <input
+                    type="radio"
+                    name="payment"
+                    className="accent-[#1F3A2B] w-5 h-5 mr-4"
+                    checked={paymentType === "automatic"}
+                    onChange={() => setPaymentType("automatic")}
+                  />
+                  <div>
+                    <span className="font-bold block mb-1 text-[#1F3A2B]">
+                      Pembayaran Otomatis
+                    </span>
+                    <span className="text-sm text-[#1F3A2B]/60">
+                      QRIS, Virtual Account, E-Wallet (Proses Instan)
                     </span>
                   </div>
-                )}
-                <div className="border-t border-gray-200 pt-3">
-                  <div className="flex justify-between text-lg font-bold">
-                    <span>Total</span>
-                    <span className="text-[#6B6B6B]">
+                </label>
+
+                {/* Option: Manual */}
+                <label className="flex items-center p-4 cursor-pointer hover:bg-[#1F3A2B]/5 transition">
+                  <input
+                    type="radio"
+                    name="payment"
+                    className="accent-[#1F3A2B] w-5 h-5 mr-4"
+                    checked={paymentType === "manual"}
+                    onChange={() => setPaymentType("manual")}
+                  />
+                  <div>
+                    <span className="font-bold block mb-1 text-[#1F3A2B]">
+                      Transfer Manual
+                    </span>
+                    <span className="text-sm text-[#1F3A2B]/60">
+                      Konfirmasi via WhatsApp Admin setelah transfer
+                    </span>
+                  </div>
+                </label>
+              </div>
+            </section>
+          </div>
+
+          {/* --- RIGHT COLUMN: ORDER SUMMARY (STICKY) --- */}
+          <div className="lg:col-span-5">
+            <div className="sticky top-28 space-y-6">
+              {/* Calculation Card */}
+              <div className="bg-[#1F3A2B] text-white p-8 rounded-2xl shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-white/5 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-32 h-32 bg-[#DFF19D]/10 rounded-full blur-2xl pointer-events-none" />
+
+                <div className="relative z-10 space-y-3 mb-8 text-sm">
+                  <div className="flex justify-between text-white/70">
+                    <span>Subtotal Produk</span>
+                    <span className="text-white font-medium">
+                      Rp {subtotal.toLocaleString("id-ID")}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-white/70">
+                    <span>Pengiriman</span>
+                    <span className="text-white font-medium">
+                      {shippingCost > 0
+                        ? `Rp ${shippingCost.toLocaleString("id-ID")}`
+                        : "-"}
+                    </span>
+                  </div>
+                  {discount > 0 && (
+                    <div className="flex justify-between text-[#DFF19D]">
+                      <span>Diskon Voucher</span>
+                      <span>- Rp {discount.toLocaleString("id-ID")}</span>
+                    </div>
+                  )}
+                  {codFee > 0 && (
+                    <div className="flex justify-between text-white/70">
+                      <span>Biaya Layanan COD</span>
+                      <span className="text-white font-medium">
+                        Rp {codFee.toLocaleString("id-ID")}
+                      </span>
+                    </div>
+                  )}
+                  <div className="pt-4 mt-2 border-t border-white/10 flex justify-between items-end">
+                    <span className="text-lg font-bold text-white/90">
+                      Total Bayar
+                    </span>
+                    <span
+                      className={`text-3xl font-bold text-[#DFF19D] ${fredoka.className}`}
+                    >
                       Rp {total.toLocaleString("id-ID")}
                     </span>
                   </div>
                 </div>
-              </div>
 
-              <button
-                onClick={onCheckoutClick}
-                disabled={
-                  isCheckingOut ||
-                  isSubmitting ||
-                  cartItems.some((it) => {
-                    const stock = typeof it.stock === "number" ? it.stock : 0;
-                    return stock <= 0;
-                  }) ||
+                {/* Voucher Input */}
+                <div className="mb-6 relative z-10">
+                  <VoucherPicker
+                    selected={selectedVoucher}
+                    onChange={setSelectedVoucher}
+                  />
+                </div>
+
+                <button
+                  onClick={onCheckoutClick}
+                  disabled={
+                    isCheckingOut ||
+                    isSubmitting ||
+                    cartItems.some((it) => {
+                      const stock = typeof it.stock === "number" ? it.stock : 0;
+                      return stock <= 0;
+                    }) ||
+                    !shippingMethod ||
+                    !shippingInfo.fullName ||
+                    !shippingInfo.address_line_1 ||
+                    !shippingInfo.postal_code ||
+                    !isPhoneValid ||
+                    !paymentType ||
+                    (!isLoggedIn && !isEmailValid)
+                  }
+                  className="w-full bg-[#DFF19D] text-[#1F3A2B] py-4 rounded-xl font-bold hover:bg-white hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-2 group"
+                >
+                  {isCheckingOut || isSubmitting ? (
+                    <>
+                      <DotdLoader /> Memproses...
+                    </>
+                  ) : (
+                    <>
+                      BAYAR SEKARANG
+                      <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                    </>
+                  )}
+                </button>
+
+                {(!paymentType ||
                   !shippingMethod ||
                   !shippingInfo.fullName ||
-                  !shippingInfo.address_line_1 ||
-                  !shippingInfo.postal_code ||
-                  !isPhoneValid ||
-                  !paymentType ||
-                  (!isLoggedIn && !isEmailValid)
-                }
-                className="w-full bg-[#6B6B6B] text-white py-4 rounded-2xl font-semibold hover:bg-[#6B6B6B]/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isCheckingOut || isSubmitting ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Memproses...
-                  </>
-                ) : paymentType === "manual" ? (
-                  <>
-                    <Upload className="w-5 h-5" />
-                    Buat Pesanan
-                  </>
-                ) : (
-                  <>
-                    <CreditCard className="w-5 h-5" />
-                    Checkout Sekarang
-                  </>
+                  !shippingInfo.address_line_1) && (
+                  <div className="mt-4 text-center">
+                    <p className="text-[#DFF19D] text-xs">
+                      * Harap lengkapi semua informasi yang diperlukan
+                    </p>
+                  </div>
                 )}
-              </button>
-              {(!paymentType ||
-                !shippingMethod ||
-                !shippingInfo.fullName ||
-                !shippingInfo.address_line_1) && (
-                <p className="text-red-500 text-sm text-center mt-3">
-                  * Harap lengkapi semua informasi yang diperlukan
-                </p>
-              )}
-              {cartItems.some((it) => {
-                const stock = typeof it.stock === "number" ? it.stock : 0;
-                return stock <= 0;
-              }) && (
-                <p className="text-red-500 text-sm text-center mt-3">
-                  Beberapa produk tidak tersedia. Hapus untuk melanjutkan.
-                </p>
-              )}
+
+                <div className="mt-6 flex items-center justify-center gap-2 text-[10px] uppercase tracking-wider text-white/40 font-bold">
+                  <ShieldCheck className="w-3 h-3" /> Transaksi Aman &
+                  Terenkripsi
+                </div>
+              </div>
             </div>
           </div>
         </div>
+
+        {/* --- BOTTOM SECTION: RELATED PRODUCTS --- */}
+        <div className="mt-20 border-t border-[#1F3A2B]/10 pt-12">
+          <h2
+            className={`text-2xl font-bold text-gray-900 mb-8 text-center ${fredoka.className}`}
+          >
+            Lengkapi Koleksi Anda
+          </h2>
+          {isRelLoading && (
+            <div className="text-[#1F3A2B] w-full flex items-center justify-center min-h-64">
+              <DotdLoader />
+            </div>
+          )}
+          {!isRelLoading && !isRelError && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {relatedProducts.map((product) => (
+                <div
+                  key={product.id}
+                  className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group border border-[#1F3A2B]/5"
+                >
+                  <div className="relative h-48">
+                    <Image
+                      src={product.image}
+                      alt={product.name}
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  </div>
+                  <div className="p-6">
+                    <div className="flex items-center gap-1 mb-2">
+                      <Star className="w-3 h-3 fill-[#1F3A2B] text-[#1F3A2B]" />
+                      <span className="text-xs font-medium text-gray-600">
+                        {product.rating > 0 ? product.rating.toFixed(1) : "New"}
+                      </span>
+                    </div>
+                    <h3 className="text-lg font-bold text-[#1F3A2B] mb-1 line-clamp-2">
+                      {product.name}
+                    </h3>
+                    <p className="text-[#1F3A2B]/60 text-sm mb-4">
+                      {product.category}
+                    </p>
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-[#1F3A2B]">
+                        Rp {product.price.toLocaleString("id-ID")}
+                      </span>
+                      <button
+                        onClick={() =>
+                          addItem({ ...product.__raw, quantity: 1 }, 0)
+                        }
+                        className="bg-[#1F3A2B] text-white p-2 rounded-xl hover:bg-[#1F3A2B]/90 transition-colors"
+                      >
+                        <Plus className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         <VariantPickerModal
           open={variantModalOpen}
           product={variantProduct}

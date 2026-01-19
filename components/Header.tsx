@@ -15,7 +15,7 @@ export default function Header() {
       initial={{ y: -80 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.6, ease: 'easeOut' }}
-      className="sticky top-0 bg-white z-50 shadow-sm"
+      className="fixed w-full top-0 bg-white z-50 shadow-sm"
     >
       {/* Top Bar */}
       <div className="max-w-7xl mx-auto flex items-center justify-between px-8 py-4">

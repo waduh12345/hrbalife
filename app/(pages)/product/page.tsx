@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Heart,
@@ -9,41 +9,42 @@ import {
   Star,
   Search,
   Package,
-  X,
-  Minus,
-  Plus,
-  Truck,
-  ShieldCheck,
   Filter,
+  X,
 } from "lucide-react";
 import Image from "next/image";
+import { AnimatePresence } from "framer-motion";
+import clsx from "clsx";
+
+// Types
 import { Product } from "@/types/admin/product";
+import { ProductCategory } from "@/types/master/product-category";
+
+// Services
 import {
   useGetProductListQuery,
-  useGetProductBySlugQuery,
-  useGetProductVariantBySlugQuery,
   useGetCategoryListQuery,
 } from "@/services/product.service";
+
+// Components
 import DotdLoader from "@/components/loader/3dot";
-import useCart from "@/hooks/use-cart";
-import clsx from "clsx";
-import VariantPickerModal from "@/components/variant-picker-modal";
-import { ProductCategory } from "@/types/master/product-category";
+import QuickViewModal, {
+  ProductWithMedia,
+} from "@/components/ui/quick-view-modal";
+import CartSuccessAlert from "@/components/ui/cart-success-alert";
 
 /* =========================
    Small typed helpers
 ========================= */
-// type guard kecil
 const isKeyedObject = (o: unknown): o is Record<string, unknown> =>
   !!o && typeof o === "object";
 
-// overloads: hasil tergantung 'kind'
 function getProp(obj: unknown, key: string, kind: "number"): number | undefined;
 function getProp(obj: unknown, key: string, kind: "string"): string | undefined;
 function getProp(
   obj: unknown,
   key: string,
-  kind: "number" | "string"
+  kind: "number" | "string",
 ): number | string | undefined {
   if (!isKeyedObject(obj)) return undefined;
   const v = obj[key];
@@ -53,11 +54,6 @@ function getProp(
 
 const getNumberProp = (obj: unknown, key: string): number | undefined =>
   getProp(obj, key, "number");
-const getStringProp = (obj: unknown, key: string): string | undefined =>
-  getProp(obj, key, "string");
-
-type MediaObj = { original_url: string };
-type MaybeWithMedia = { media?: MediaObj[] };
 
 /* ---------- Suspense-safe reader ---------- */
 function SearchParamsReader({
@@ -90,7 +86,6 @@ function StarRating({ value }: { value: number }) {
   );
 }
 
-type ViewMode = "grid" | "list";
 type PriceRange =
   | "all"
   | "under-100k"
@@ -105,58 +100,17 @@ type SortKey =
   | "newest"
   | "diskon-terbesar";
 
-export interface ProductVariant {
-  id: number;
-  name: string | number;
-  price: number | string;
-  stock: number | string;
-  sku?: string | null;
-}
-type SelectedVariant = {
-  id?: number;
-  price?: number | string;
-  stock?: number | string;
-  sku?: string | null;
-};
-
-const isVariantArray = (v: unknown): v is ProductVariant[] =>
-  Array.isArray(v) &&
-  v.every(
-    (o) =>
-      !!o &&
-      typeof o === "object" &&
-      "id" in o &&
-      "name" in o &&
-      "price" in o &&
-      "stock" in o
-  );
-
 const IMG_FALLBACK =
-  "https://via.placeholder.com/400x400/000000/FFFFFF?text=BLACKBOXINC";
+  "https://via.placeholder.com/400x400/000000/FFFFFF?text=No+Image";
 
-const formatDate = (d: Date) =>
-  d.toLocaleDateString("id-ID", { day: "2-digit", month: "short" });
-const etaRange = () => {
-  const a = new Date();
-  const b = new Date();
-  a.setDate(a.getDate() + 2);
-  b.setDate(b.getDate() + 5);
-  return `${formatDate(a)} – ${formatDate(b)}`;
-};
-
-const FilterBlocks = ({ children }: { children: React.ReactNode }) => (
-  <>{children}</>
-);
 const Pagination = ({
   page,
   totalPages,
   onChange,
-  children,
 }: {
   page: number;
   totalPages: number;
   onChange: (p: number) => void;
-  children?: React.ReactNode;
 }) => (
   <div className="text-center flex items-center justify-center gap-2">
     <button
@@ -176,9 +130,9 @@ const Pagination = ({
     >
       Next
     </button>
-    {children}
   </div>
 );
+
 const Button = ({
   children,
   className,
@@ -200,6 +154,7 @@ const toNumber = (val: number | string): number => {
   const parsed = parseFloat(val);
   return Number.isFinite(parsed) ? parsed : 0;
 };
+
 const formatQueryToTitle = (q: string | null): string => {
   if (!q) return "Semua Produk";
   if (q === "new-arrivals") return "New Arrivals";
@@ -211,30 +166,35 @@ const formatQueryToTitle = (q: string | null): string => {
     .join(" ");
 };
 
+const formatCurrency = (n: number) =>
+  new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  }).format(n);
+
 export default function ProductsPage() {
   const router = useRouter();
-  /* ---------- Search params ---------- */
+
+  // --- Search Params ---
   const [sp, setSp] = useState<URLSearchParams | null>(null);
   const rawQ = sp?.get("q") ?? null;
 
   type Mode = "all" | "new" | "best";
   const mode: Mode =
     rawQ === "new-arrivals" ? "new" : rawQ === "best-seller" ? "best" : "all";
-  const urlSearchTerm = mode === "all" ? rawQ ?? "" : "";
+  const urlSearchTerm = mode === "all" ? (rawQ ?? "") : "";
 
-  const [variantModalOpen, setVariantModalOpen] = useState(false);
-  const [variantProduct, setVariantProduct] = useState<Product | null>(null);
+  // --- Modal State ---
+  // Menggunakan state tunggal untuk mengontrol modal quick view
+  const [quickViewProduct, setQuickViewProduct] =
+    useState<ProductWithMedia | null>(null);
 
   const dynamicTitle = useMemo(() => formatQueryToTitle(rawQ), [rawQ]);
 
-  /* ---------- Local states ---------- */
+  // --- Local States ---
   const [currentPage, setCurrentPage] = useState(1);
   const [query, setQuery] = useState(urlSearchTerm);
-  const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  const [selectedVariant, setSelectedVariant] =
-    useState<SelectedVariant | null>(null);
-  const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [wishlist, setWishlist] = useState<number[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -255,17 +215,15 @@ export default function ProductsPage() {
   const [inStockOnly, setInStockOnly] = useState(false);
   const [onlyDiscount, setOnlyDiscount] = useState(false);
 
-  const { addItem } = useCart();
-
-  /* ---------- API bindings ---------- */
+  // --- API Bindings ---
   const ITEMS_PER_PAGE = 9;
 
   const orderBy =
     mode === "new"
       ? "updated_at"
       : mode === "best"
-      ? "products.sales"
-      : undefined;
+        ? "products.sales"
+        : undefined;
   const order: "asc" | "desc" | undefined = orderBy ? "desc" : undefined;
 
   const { data: listResp, isLoading } = useGetProductListQuery({
@@ -279,22 +237,16 @@ export default function ProductsPage() {
     paginate: 100,
   });
 
-  const categoryOptions = useMemo(() => {
-    if (categoryResp?.data && Array.isArray(categoryResp.data)) {
-      return categoryResp.data.map((cat: { name: string }) => cat.name);
-    }
-    return ["T-Shirts", "Hoodies", "Pants", "Footwear", "Bags", "Accessories"];
-  }, [categoryResp]);
-
   const categoryOptionList = useMemo(
     () =>
       ((categoryResp?.data ?? []) as ProductCategory[]).map((c) => ({
         label: c.name ?? "Kategori",
         slug: c.slug ?? String(c.id),
       })),
-    [categoryResp?.data]
+    [categoryResp?.data],
   );
 
+  // --- Filter Logic ---
   useEffect(() => {
     const slugFromUrl = sp?.get("category") ?? null;
 
@@ -306,35 +258,29 @@ export default function ProductsPage() {
       return;
     }
 
-    // tunggu data kategori tersedia
     if (!categoryOptionList || categoryOptionList.length === 0) return;
 
     const matched = categoryOptionList.find((c) => c.slug === slugFromUrl);
     const fallbackByLabel = categoryOptionList.find(
       (c) =>
         c.label.trim().toLowerCase() ===
-        decodeURIComponent(slugFromUrl).trim().toLowerCase()
+        decodeURIComponent(slugFromUrl).trim().toLowerCase(),
     );
 
     const newCategory =
       matched?.slug ?? fallbackByLabel?.slug ?? decodeURIComponent(slugFromUrl);
 
-    // hanya set kalau beda (mencegah setFilter berulang)
     if (newCategory !== filter.category) {
       setFilter((prev) => ({ ...prev, category: newCategory }));
       setCurrentPage(1);
     }
-    // Dep array: hanya re-run saat sp (string) atau category list berubah
   }, [sp?.toString(), categoryOptionList]);
 
-  // helper untuk update filter + URL (preserve query lain)
   const setCategoryAndSyncUrl = (slug: string) => {
-    // update ui state
     setFilter((prev) => ({ ...prev, category: slug }));
     setCurrentPage(1);
 
     try {
-      // bangun URLSearchParams dari sp (jika ada), agar kita tidak menghapus param lain seperti q
       const params = new URLSearchParams(sp?.toString() ?? "");
       if (slug === "all") {
         params.delete("category");
@@ -344,129 +290,44 @@ export default function ProductsPage() {
 
       const query = params.toString();
       const target = query ? `/product?${query}` : `/product`;
-      // gunakan router.replace supaya tidak menumpuk history; push juga boleh
       router.replace(target);
     } catch (err) {
-      // fallback simple
       router.replace(
         slug === "all"
           ? "/product"
-          : `/product?category=${encodeURIComponent(slug)}`
+          : `/product?category=${encodeURIComponent(slug)}`,
       );
     }
   };
 
-  const [activeImg, setActiveImg] = useState(0);
   const totalPages = useMemo(() => listResp?.last_page ?? 1, [listResp]);
   const products = useMemo<Product[]>(() => listResp?.data ?? [], [listResp]);
-  const [qty, setQty] = useState(1);
-  const panelRef = useRef<HTMLDivElement | null>(null);
-  const closeBtnRef = useRef<HTMLButtonElement | null>(null);
-
-  const { data: detailProduct, isLoading: isDetailLoading } =
-    useGetProductBySlugQuery(selectedSlug ?? "", { skip: !selectedSlug });
-  const { data: detailProductVariant, isLoading: isDetailVariantLoading } =
-    useGetProductVariantBySlugQuery(selectedSlug ?? "", {
-      skip: !selectedSlug,
-    });
-
-  const variants = useMemo<ProductVariant[]>(() => {
-    const maybe = (detailProductVariant as unknown as { data?: unknown })?.data;
-    return isVariantArray(maybe) ? maybe : [];
-  }, [detailProductVariant]);
-
-  const currentPrice = toNumber(
-    selectedVariant?.price ?? detailProduct?.price ?? 0
-  );
-  const currentStock = toNumber(
-    selectedVariant?.stock ?? detailProduct?.stock ?? 0
-  );
-  const currentSku = selectedVariant?.sku ?? detailProduct?.sku ?? "N/A";
-  const currentDiscount = 0;
 
   const toggleWishlist = (productId: number) => {
     setWishlist((prev) =>
       prev.includes(productId)
         ? prev.filter((id) => id !== productId)
-        : [...prev, productId]
+        : [...prev, productId],
     );
   };
 
-  const addToCart = (
-    product: Product,
-    id?: number,
-    priceOverride?: number | string
-  ) => {
-    const variantId = id ?? product.product_variant_id ?? 0;
-    const priceNum = toNumber(
-      typeof priceOverride !== "undefined" ? priceOverride : product.price
-    );
-    addItem({ ...product, price: priceNum }, variantId);
-    if (typeof window !== "undefined")
-      window.dispatchEvent(new CustomEvent("cartUpdated"));
-  };
+  /* ---------- HELPER FIX: getImageUrl ---------- */
+  const getImageUrl = (p: Product): string => {
+    // 1. Cek jika image langsung berupa string
+    if (typeof p.image === "string" && p.image) return p.image;
 
-  const openVariantModalFor = (p: Product) => {
-    setVariantProduct(p);
-    setVariantModalOpen(true);
-  };
+    // 2. Type assertion aman untuk mengakses properti media
+    // Kita beritahu TS bahwa 'p' mungkin memiliki properti 'media' array
+    const productWithMedia = p as unknown as {
+      media?: { original_url: string }[];
+    };
 
-  const openProductModal = (p: Product) => {
-    setSelectedSlug(p.slug);
-    setIsModalOpen(true);
-  };
-
-  /* ---------- Modal lifecycle ---------- */
-  useEffect(() => {
-    document.body.style.overflow = isModalOpen ? "hidden" : "";
-    if (isModalOpen && detailProduct) {
-      if (variants.length > 0) {
-        setSelectedVariant(variants[0]);
-      } else {
-        setSelectedVariant({
-          id: detailProduct.id,
-          price: detailProduct.price,
-          stock: detailProduct.stock,
-          sku: detailProduct.sku ?? null,
-        });
-      }
-      setQty(1);
-    } else {
-      setSelectedVariant(null);
+    // 3. Akses media dengan aman
+    const media = productWithMedia.media;
+    if (Array.isArray(media) && media.length > 0 && media[0]?.original_url) {
+      return media[0].original_url;
     }
 
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setIsModalOpen(false);
-      if (e.key === "Tab" && panelRef.current) {
-        const focusables = panelRef.current?.querySelectorAll<HTMLElement>(
-          'a, button, input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        if (!focusables?.length) return;
-        const first = focusables[0];
-        const last = focusables[focusables.length - 1];
-        const activeEl = document.activeElement as HTMLElement | null;
-        if (e.shiftKey && activeEl === first) {
-          last.focus();
-          e.preventDefault();
-        } else if (!e.shiftKey && activeEl === last) {
-          first.focus();
-          e.preventDefault();
-        }
-      }
-    };
-    if (isModalOpen) window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = "";
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [isModalOpen, detailProduct, variants.length]);
-
-  /* ---------- Helpers ---------- */
-  const getImageUrl = (p: Product): string => {
-    if (typeof p.image === "string" && p.image) return p.image;
-    const media = (p as unknown as MaybeWithMedia).media;
-    if (Array.isArray(media) && media.length > 0 && media[0]?.original_url)
-      return media[0].original_url;
     return IMG_FALLBACK;
   };
 
@@ -501,7 +362,7 @@ export default function ProductsPage() {
         (filter.priceRange === "above-500k" && price > 500_000);
       const matchStock = inStockOnly ? stock > 0 : true;
 
-      const was = getNumberProp(p, "was"); // optional price-before
+      const was = getNumberProp(p, "markup_price");
       const matchDiscount = onlyDiscount
         ? typeof was === "number" && was > p.price
         : true;
@@ -536,15 +397,15 @@ export default function ProductsPage() {
         return arr.sort(
           (a, b) =>
             (getNumberProp(b, "rating") ?? 0) -
-            (getNumberProp(a, "rating") ?? 0)
+            (getNumberProp(a, "rating") ?? 0),
         );
       }
       case "newest":
         return arr.sort((a, b) => b.id - a.id);
       case "diskon-terbesar":
         return arr.sort((a, b) => {
-          const wasA = getNumberProp(a, "was") ?? a.price;
-          const wasB = getNumberProp(b, "was") ?? b.price;
+          const wasA = getNumberProp(a, "markup_price") ?? a.price;
+          const wasB = getNumberProp(b, "markup_price") ?? b.price;
           const discA = (wasA - a.price) / wasA;
           const discB = (wasB - b.price) / wasB;
           return discB - discA;
@@ -562,14 +423,14 @@ export default function ProductsPage() {
 
   const totalFilteredPages = Math.max(
     1,
-    Math.ceil(sortedProducts.length / ITEMS_PER_PAGE)
+    Math.ceil(sortedProducts.length / ITEMS_PER_PAGE),
   );
   const startFilteredIdx = sortedProducts.length
     ? (currentPage - 1) * ITEMS_PER_PAGE + 1
     : 0;
   const endFilteredIdx = Math.min(
     currentPage * ITEMS_PER_PAGE,
-    sortedProducts.length
+    sortedProducts.length,
   );
 
   useEffect(() => {
@@ -582,10 +443,6 @@ export default function ProductsPage() {
     inStockOnly,
     onlyDiscount,
   ]);
-
-  const formatCurrency = (n: number): string =>
-    `Rp ${n.toLocaleString("id-ID")}`;
-  const totalModalPrice = currentPrice * qty;
 
   const SimplifiedFilterBlocks = () => (
     <div className="space-y-4">
@@ -677,9 +534,11 @@ export default function ProductsPage() {
     </div>
   );
 
-  /* ---------- Render ---------- */
   return (
     <div className="min-h-screen bg-white">
+      {/* Alert Component */}
+      <CartSuccessAlert />
+
       <Suspense fallback={null}>
         <SearchParamsReader onChange={setSp} />
       </Suspense>
@@ -717,7 +576,7 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      {/* Main */}
+      {/* Main Content */}
       <div className="container mx-auto max-w-7xl px-4">
         <div className="grid grid-cols-1 gap-6 py-8 md:grid-cols-[260px_1fr]">
           <aside className="hidden rounded-lg border border-gray-200 bg-white p-4 shadow-sm md:block">
@@ -761,7 +620,7 @@ export default function ProductsPage() {
               </div>
             </div>
 
-            {/* Products */}
+            {/* Products Grid */}
             {isLoading ? (
               <div className="w-full flex justify-center items-center min-h-64">
                 <DotdLoader />
@@ -791,7 +650,7 @@ export default function ProductsPage() {
                       key={product.id}
                       className="bg-white rounded-lg transition-all duration-300 overflow-hidden group relative border border-gray-100 shadow-sm flex flex-col"
                     >
-                      {/* IMAGE - maintain proportion with aspect ratio */}
+                      {/* IMAGE */}
                       <div className="relative w-full aspect-[3/4] overflow-hidden">
                         <Image
                           src={img}
@@ -805,7 +664,7 @@ export default function ProductsPage() {
                         <div
                           className={clsx(
                             "absolute top-4 right-4 flex flex-col gap-2 z-10 transition-opacity",
-                            "opacity-0 group-hover:opacity-100"
+                            "opacity-0 group-hover:opacity-100",
                           )}
                         >
                           <button
@@ -827,7 +686,7 @@ export default function ProductsPage() {
                           </button>
 
                           <button
-                            onClick={() => openProductModal(product)}
+                            onClick={() => setQuickViewProduct(product)}
                             className="p-2 bg-white text-gray-600 hover:text-black rounded-full shadow-lg transition-colors"
                             aria-label="Quick View"
                           >
@@ -844,43 +703,27 @@ export default function ProductsPage() {
                           </h3>
 
                           <div className="mt-2 flex flex-wrap gap-y-2 items-end justify-between">
-                            {/* --- BAGIAN HARGA (STYLE UNIQLO) --- */}
                             <div className="flex flex-col">
-                              {product.markup_price > product.price ? (
-                                <>
-                                  {/* Baris 1: Harga Jual (Merah) & Harga Asli (Coret) Berdampingan */}
-                                  <div className="flex items-baseline gap-2">
-                                    {/* Harga Jual: Merah, Bold, Lebih Besar */}
-                                    <span className="font-bold text-red-600 text-sm md:text-lg">
-                                      {formatCurrency(product.price)}
-                                    </span>
-
-                                    {/* Harga Markup: Abu-abu, Coret, Lebih Kecil */}
-                                    <span className="text-gray-400 line-through text-xs">
-                                      {formatCurrency(product.markup_price)}
-                                    </span>
-                                  </div>
-
-                                  {/* Baris 2: Keterangan Hemat (Merah Kecil - Mirip teks 'Sale...' Uniqlo) */}
-                                  <span className="text-[10px] md:text-xs text-red-600 font-medium mt-0.5">
-                                    Save{" "}
-                                    {Math.round(
-                                      ((product.markup_price - product.price) /
-                                        product.markup_price) *
-                                        100
-                                    )}
-                                    %
+                              {(getNumberProp(product, "markup_price") ?? 0) >
+                              toNumber(product.price) ? (
+                                <div className="flex items-baseline gap-2">
+                                  <span className="font-bold text-red-600 text-sm md:text-lg">
+                                    {formatCurrency(toNumber(product.price))}
                                   </span>
-                                </>
+                                  <span className="text-gray-400 line-through text-xs">
+                                    {formatCurrency(
+                                      getNumberProp(product, "markup_price") ??
+                                        0,
+                                    )}
+                                  </span>
+                                </div>
                               ) : (
-                                /* Tampilan Normal (Tanpa Markup) - Hitam Biasa */
                                 <span className="font-bold text-black text-sm md:text-lg">
-                                  {formatCurrency(product.price)}
+                                  {formatCurrency(toNumber(product.price))}
                                 </span>
                               )}
                             </div>
 
-                            {/* --- RATING --- */}
                             <div className="flex items-center gap-1 mb-1">
                               <StarRating value={ratingNum} />
                               <span className="text-xs text-gray-500">
@@ -889,21 +732,20 @@ export default function ProductsPage() {
                             </div>
                           </div>
 
-                          {/* --- STOCK INFO --- */}
-                          {product.stock <= 0 ? (
+                          {toNumber(product.stock) <= 0 ? (
                             <div className="mt-2 text-xs font-semibold text-red-600">
-                              Sold out — notify me
+                              Sold out
                             </div>
                           ) : (
                             <div className="mt-2 text-xs text-gray-600">
-                              Stock: {product.stock} • Ready to ship
+                              Stock: {product.stock}
                             </div>
                           )}
                         </div>
 
                         <div className="mt-4">
                           <Button
-                            onClick={() => openVariantModalFor(product)}
+                            onClick={() => setQuickViewProduct(product)}
                             className="text-xs md:text-lg w-full bg-black text-white hover:bg-gray-800 uppercase tracking-wider font-bold py-2.5 rounded-lg transition-colors"
                           >
                             Add to Cart
@@ -974,358 +816,15 @@ export default function ProductsPage() {
         </div>
       )}
 
-      <VariantPickerModal
-        open={variantModalOpen}
-        product={variantProduct}
-        onClose={() => setVariantModalOpen(false)}
-        onAdded={() => {
-          // optional: kamu bisa munculkan toast, dll
-        }}
-      />
-
-      {/* Product Detail Modal */}
-      {isModalOpen && detailProduct && (
-        <div
-          className="fixed inset-0 z-[70] overflow-y-auto"
-          role="dialog"
-          aria-modal="true"
-          aria-label={`Detail ${detailProduct.name}`}
-        >
-          <div
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm"
-            onClick={() => setIsModalOpen(false)}
+      {/* REUSABLE MODAL - Dipanggil sekali untuk seluruh halaman */}
+      <AnimatePresence>
+        {quickViewProduct && (
+          <QuickViewModal
+            productBase={quickViewProduct}
+            onClose={() => setQuickViewProduct(null)}
           />
-          <div className="relative mx-auto my-6 max-w-5xl p-4 md:p-0">
-            <div
-              ref={panelRef}
-              className="animate-[fadeIn_180ms_ease-out] overflow-hidden rounded-xl border border-gray-100 bg-white shadow-2xl"
-            >
-              <div className="grid gap-0 md:grid-cols-2">
-                <div className="relative p-0 md:p-4 bg-gray-50">
-                  <div className="overflow-hidden">
-                    <Image
-                      src={
-                        typeof detailProduct.image === "string"
-                          ? detailProduct.image
-                          : IMG_FALLBACK
-                      }
-                      alt={`${detailProduct.name} - image 1`}
-                      width={500}
-                      height={625}
-                      className="h-96 w-full object-cover md:h-[540px] grayscale-[10%]"
-                      unoptimized
-                    />
-                  </div>
-                  <div className="mt-3 flex gap-2 p-3 md:p-0">
-                    <button
-                      onClick={() => setActiveImg(0)}
-                      className={clsx(
-                        "overflow-hidden rounded-lg ring-2 transition",
-                        activeImg === 0
-                          ? "ring-black ring-2"
-                          : "ring-gray-300 hover:ring-black/50"
-                      )}
-                      aria-label="Select image 1"
-                    >
-                      <Image
-                        src={
-                          typeof detailProduct.image === "string"
-                            ? detailProduct.image
-                            : IMG_FALLBACK
-                        }
-                        alt="thumb 1"
-                        width={64}
-                        height={64}
-                        className="h-16 w-16 object-cover grayscale-[10%]"
-                        unoptimized
-                      />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="relative p-6 md:p-8">
-                  <button
-                    onClick={() => setIsModalOpen(false)}
-                    aria-label="Tutup"
-                    className="absolute right-4 top-4 rounded-full p-2 text-black hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-black"
-                    ref={closeBtnRef}
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-
-                  <div className="flex items-start justify-between gap-3 pr-8">
-                    <div>
-                      <h3 className="text-xl font-extrabold tracking-tight text-black uppercase">
-                        {detailProduct.name}
-                      </h3>
-                      <div className="mt-1 flex items-center gap-2">
-                        <StarRating
-                          value={getNumberProp(detailProduct, "rating") ?? 0}
-                        />
-                        <span className="text-sm text-gray-600">
-                          {(
-                            getNumberProp(detailProduct, "rating") ?? 0
-                          ).toFixed(1)}{" "}
-                          • {getNumberProp(detailProduct, "total_reviews") ?? 0}{" "}
-                          reviews
-                        </span>
-                      </div>
-                      <div className="mt-1 text-xs text-gray-500">
-                        SKU: <span className="font-mono">{currentSku}</span> •
-                        Stock:{" "}
-                        <span
-                          className={
-                            currentStock > 0
-                              ? "text-black font-semibold"
-                              : "text-red-600 font-semibold"
-                          }
-                        >
-                          {isDetailLoading || isDetailVariantLoading
-                            ? "Loading..."
-                            : currentStock > 0
-                            ? `${currentStock} available`
-                            : "Sold Out"}
-                        </span>
-                      </div>
-                    </div>
-                    <button
-                      className="rounded-full p-2 text-black hover:bg-gray-50 transition-colors"
-                      aria-label="Tambah ke wishlist"
-                      onClick={() => toggleWishlist(detailProduct.id)}
-                    >
-                      <Heart className="h-5 w-5 fill-transparent hover:fill-black" />
-                    </button>
-                  </div>
-
-                  {/* --- BAGIAN HARGA YANG SUDAH DIPERBAIKI (Added ?? 0) --- */}
-                  <div className="mt-3 border-b border-gray-100 pb-3">
-                    <div className="flex flex-col">
-                      {(getNumberProp(detailProduct, "markup_price") ?? 0) >
-                      currentPrice ? (
-                        <>
-                          <div className="flex items-baseline gap-3">
-                            {/* Harga Jual (Merah & Besar) */}
-                            <span className="text-3xl font-extrabold text-red-600">
-                              {formatCurrency(currentPrice)}
-                            </span>
-
-                            {/* Harga Coret (Abu-abu) */}
-                            <span className="text-lg text-gray-400 line-through">
-                              {formatCurrency(
-                                getNumberProp(detailProduct, "markup_price") ??
-                                  0
-                              )}
-                            </span>
-                          </div>
-
-                          {/* Badge Hemat (Save %) */}
-                          <div className="mt-1">
-                            <span className="inline-flex items-center rounded bg-red-100 px-2 py-0.5 text-xs font-bold text-red-600">
-                              Save{" "}
-                              {Math.round(
-                                (((getNumberProp(
-                                  detailProduct,
-                                  "markup_price"
-                                ) ?? 0) -
-                                  currentPrice) /
-                                  (getNumberProp(
-                                    detailProduct,
-                                    "markup_price"
-                                  ) ?? 1)) * // Avoid division by zero risk in TS eyes, though condition prevents it
-                                  100
-                              )}
-                              %
-                            </span>
-                          </div>
-                        </>
-                      ) : (
-                        /* Tampilan Normal */
-                        <span className="text-3xl font-extrabold text-black">
-                          {formatCurrency(currentPrice)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  {/* ---------------------------------------------------- */}
-
-                  {getStringProp(detailProduct, "description") && (
-                    <p className="mt-3 text-sm text-gray-700">
-                      {getStringProp(detailProduct, "description")}
-                    </p>
-                  )}
-
-                  {variants.length > 0 && (
-                    <div className="mt-5 grid grid-cols-1">
-                      <div>
-                        <div className="text-xs font-bold uppercase tracking-wider text-black">
-                          Varian (
-                          {String(variants[0]?.name ?? "")
-                            .toLowerCase()
-                            .includes("size")
-                            ? "Size"
-                            : "Pilihan"}
-                          )
-                        </div>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {variants.map((v) => {
-                            const selected = selectedVariant?.id === v.id;
-                            const vStock = toNumber(v.stock);
-                            return (
-                              <button
-                                key={v.id}
-                                onClick={() => setSelectedVariant(v)}
-                                disabled={vStock <= 0}
-                                className={clsx(
-                                  "rounded-lg px-4 py-2 text-sm font-semibold ring-1 transition",
-                                  vStock <= 0 &&
-                                    "opacity-50 cursor-not-allowed line-through",
-                                  selected
-                                    ? "bg-black text-white ring-black"
-                                    : "bg-white text-gray-700 ring-gray-300 hover:ring-black/50"
-                                )}
-                                aria-pressed={selected}
-                              >
-                                {String(v.name)}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="mt-5 flex flex-wrap items-center gap-4">
-                    <div className="inline-flex items-center rounded-lg border border-gray-300">
-                      <button
-                        className="p-2 hover:bg-gray-50 rounded-l-lg text-black"
-                        aria-label="Kurangi"
-                        onClick={() => setQty((q) => Math.max(1, q - 1))}
-                        disabled={currentStock <= 0}
-                      >
-                        <Minus className="h-4 w-4" />
-                      </button>
-                      <input
-                        type="number"
-                        className="w-12 border-x border-gray-300 text-center outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-black font-semibold"
-                        value={qty}
-                        min={1}
-                        max={currentStock > 0 ? currentStock : 100}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value, 10);
-                          const max =
-                            currentStock > 0 ? currentStock : Infinity;
-                          setQty(
-                            Number.isNaN(val)
-                              ? 1
-                              : Math.max(1, Math.min(val, max))
-                          );
-                        }}
-                        aria-label="Jumlah"
-                        disabled={currentStock <= 0}
-                      />
-                      <button
-                        className="p-2 hover:bg-gray-50 rounded-r-lg text-black"
-                        aria-label="Tambah"
-                        onClick={() =>
-                          setQty((q) =>
-                            Math.min(
-                              q + 1,
-                              currentStock > 0 ? currentStock : Infinity
-                            )
-                          )
-                        }
-                        disabled={currentStock <= 0 || qty >= currentStock}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </button>
-                    </div>
-
-                    <div className="text-sm text-gray-700">
-                      Total:{" "}
-                      <span className="font-extrabold text-black">
-                        {formatCurrency(totalModalPrice)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 grid grid-cols-3 items-center gap-3">
-                    <button
-                      className="col-span-3 inline-flex items-center justify-center rounded-lg bg-black px-4 py-3 text-base font-bold text-white shadow-xl hover:bg-gray-800 transition-colors uppercase tracking-wider disabled:bg-gray-400"
-                      onClick={() => {
-                        if (currentStock <= 0) return;
-                        if (variants.length > 0 && !selectedVariant)
-                          return alert("Pilih varian dulu.");
-                        addToCart(
-                          detailProduct,
-                          selectedVariant?.id,
-                          selectedVariant?.price
-                        );
-                        setIsModalOpen(false);
-                      }}
-                      disabled={
-                        currentStock <= 0 ||
-                        (variants.length > 0 && !selectedVariant)
-                      }
-                    >
-                      <ShoppingCart className="w-5 h-5" /> Add to Cart
-                    </button>
-                  </div>
-
-                  <div className="mt-6 grid grid-cols-1 gap-3 text-sm text-gray-700 sm:grid-cols-2">
-                    <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-                      <Truck className="h-4 w-4 text-black" />
-                      ETA: {etaRange()}
-                    </div>
-                    <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-                      <ShieldCheck className="h-4 w-4 text-black" />
-                      7-day exchange guarantee
-                    </div>
-                  </div>
-
-                  <div className="mt-6 rounded-lg border border-gray-300">
-                    <details className="group">
-                      <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-semibold text-black uppercase tracking-wider">
-                        Details & Specifications
-                        <span className="text-gray-500 group-open:rotate-180 transition">
-                          ⌄
-                        </span>
-                      </summary>
-                      <div className="border-t border-gray-200 px-4 py-3 text-sm text-gray-700">
-                        <ul className="ms-4 list-disc space-y-1">
-                          <li>Material: Premium heavy cotton blend</li>
-                          <li>Care: Cold wash, do not use bleach</li>
-                          <li>Origin: Indonesia</li>
-                        </ul>
-                        <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 sm:grid-cols-3">
-                          <div>
-                            <span className="text-gray-500">SKU:</span>{" "}
-                            {currentSku}
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Weight:</span> ~350g
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Category:</span>{" "}
-                            {detailProduct.category_name}
-                          </div>
-                        </div>
-                      </div>
-                    </details>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-3 text-center text-sm text-white/90">
-              Press{" "}
-              <kbd className="rounded bg-black/50 px-1 py-0.5 text-white">
-                Esc
-              </kbd>{" "}
-              or click outside to close
-            </div>
-          </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 }
