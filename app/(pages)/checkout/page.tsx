@@ -1,9 +1,27 @@
-import CheckoutPage from "@/components/main/checkout-page/checkout-page";
+import type { Metadata } from 'next'
+import CheckoutClient from './CheckoutClient'
 
-export default function Product() {
+export const metadata: Metadata = {
+  title: 'Checkout | HerbalCare',
+  description: 'Secure checkout untuk produk herbal premium HerbalCare.',
+}
+
+export default function CheckoutPage() {
   return (
-    <div className="min-h-screen">
-      <CheckoutPage/>
-    </div>
-  );
+    <>
+      {/* JSON-LD Checkout */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'CheckoutPage',
+            name: 'HerbalCare Checkout',
+            isPartOf: 'https://herbalcare.co.id',
+          }),
+        }}
+      />
+      <CheckoutClient />
+    </>
+  )
 }

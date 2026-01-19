@@ -1,0 +1,206 @@
+/* =========================
+   Tailwind Base
+========================= */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =========================
+   CSS Variables (Design Tokens)
+========================= */
+:root {
+  /* Colors */
+  --color-primary: #2D5A27;
+  --color-accent: #88B04B;
+  --color-background: #F9FBFA;
+  --color-text: #1f2937;
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+
+  /* Shadows */
+  --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.06);
+  --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.08);
+
+  /* Transition */
+  --transition-base: all 0.25s ease;
+}
+
+/* =========================
+   Base Styles
+========================= */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--font-inter), var(--font-montserrat), sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* =========================
+   Typography System
+========================= */
+h1, h2, h3, h4, h5 {
+  font-family: var(--font-montserrat), sans-serif;
+}
+
+main p {
+  color: #4b5563;
+}
+
+
+h1 {
+  font-size: clamp(2.8rem, 4vw, 3.5rem);
+  line-height: 1.1;
+  font-weight: 600;
+}
+
+h2 {
+  font-size: 2rem;
+  line-height: 1.25;
+  font-weight: 600;
+}
+
+h3 {
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
+p {
+  line-height: 1.7;
+  color: #4b5563;
+}
+
+/* =========================
+   Reusable Utility Classes
+========================= */
+.container-desktop {
+  max-width: 1280px;
+  margin-inline: auto;
+  padding-inline: 2rem;
+}
+
+.shadow-soft {
+  box-shadow: var(--shadow-soft);
+}
+
+.shadow-card {
+  box-shadow: var(--shadow-card);
+}
+
+.radius-lg {
+  border-radius: var(--radius-lg);
+}
+
+.radius-xl {
+  border-radius: var(--radius-xl);
+}
+
+/* =========================
+   Buttons
+========================= */
+.btn-primary {
+  background-color: var(--color-accent);
+  color: white;
+  padding: 1rem 2rem;
+  border-radius: 9999px;
+  font-weight: 500;
+  box-shadow: var(--shadow-soft);
+  transition: var(--transition-base);
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.btn-outline {
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
+  padding: 0.75rem 2rem;
+  border-radius: 9999px;
+  transition: var(--transition-base);
+}
+
+.btn-outline:hover {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.bg-accent {
+  background-color: var(--color-accent);
+}
+
+/* =========================
+   Inputs
+========================= */
+input,
+textarea {
+  border-radius: 9999px;
+  border: 1px solid #e5e7eb;
+  padding: 0.75rem 1.25rem;
+  outline: none;
+  transition: var(--transition-base);
+}
+
+input:focus,
+textarea:focus {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px rgba(136, 176, 75, 0.25);
+}
+
+/* =========================
+   Cards
+========================= */
+.card {
+  background-color: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  transition: var(--transition-base);
+}
+
+.card-hover:hover {
+  transform: translateY(-6px);
+}
+
+/* =========================
+   Image & Media
+========================= */
+img {
+  max-width: 100%;
+  display: block;
+}
+
+.image-cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* =========================
+   GSAP / Motion Safety
+========================= */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* =========================
+   Selection
+========================= */
+::selection {
+  background-color: var(--color-accent);
+  color: white;
+}
