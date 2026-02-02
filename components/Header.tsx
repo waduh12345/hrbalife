@@ -55,43 +55,8 @@ export default function Header() {
         <nav className="hidden md:block">
           <ul className="flex items-center gap-6 text-sm font-medium">
             {/* SHOP MENU */}
-            <li
-              className="relative flex items-center gap-1 cursor-pointer hover:text-green-600 transition-colors"
-              onMouseEnter={() => setOpen(true)}
-              onMouseLeave={() => setOpen(false)}
-            >
-              Shop <ChevronDown size={16} />
-              {/* Mega Menu */}
-              <AnimatePresence>
-                {open && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    transition={{ duration: 0.25, ease: 'easeOut' }}
-                    className="absolute top-full left-1/2 -translate-x-1/2 mt-6 w-[720px] bg-white rounded-2xl shadow-xl border border-green-100 p-10"
-                  >
-                    <div className="grid grid-cols-4 gap-8">
-                      <MenuColumn
-                        title="Pencernaan"
-                        items={['Maag', 'Asam Lambung', 'Detoks']}
-                      />
-                      <MenuColumn
-                        title="Energi"
-                        items={['Stamina', 'Daya Tahan', 'Pemulihan']}
-                      />
-                      <MenuColumn
-                        title="Berat Badan"
-                        items={['Diet Alami', 'Metabolisme', 'Lemak']}
-                      />
-                      <MenuColumn
-                        title="Imun Tubuh"
-                        items={['Antioksidan', 'Imunitas', 'Herbal Harian']}
-                      />
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+            <li>
+              <Link href="/product" className="hover:text-green-600 transition-colors cursor-pointer">Shop</Link>
             </li>
             <li>
               <Link href="/tentang-kami" className="hover:text-green-600 transition-colors cursor-pointer">Tentang Kami</Link>
