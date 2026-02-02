@@ -21,7 +21,9 @@ interface ProductVariantUI {
   price: number | string;
   stock: number | string;
   sku?: string | null;
-  image?: string | null; // Tambahan field image
+  image?: string | null;
+  markup_price?: number | string | null;
+  media?: { original_url?: string }[];
 }
 
 interface ProductMedia {
@@ -31,6 +33,14 @@ export type ProductWithMedia = Product & { media?: ProductMedia[] };
 
 interface ApiResponse<T> {
   data?: T;
+}
+
+/** API can return paginated { data: [], current_page, ... } or direct array */
+function getVariantsList(raw: unknown): ProductVariantUI[] {
+  if (!raw || typeof raw !== "object") return [];
+  const d = raw as Record<string, unknown>;
+  if (Array.isArray(d.data)) return d.data as ProductVariantUI[];
+  return [];
 }
 
 interface Size {
@@ -94,10 +104,10 @@ export default function QuickViewModal({
   const { data: variantData, isLoading: loadingVariants } =
     useGetProductVariantBySlugQuery(productBase.slug);
 
-  const variants = useMemo(() => {
-    const response = variantData as ApiResponse<ProductVariantUI[]> | undefined;
-    return Array.isArray(response?.data) ? response.data : [];
-  }, [variantData]);
+  const variants = useMemo(
+    () => getVariantsList(variantData),
+    [variantData],
+  );
 
   const { data: sizeData, isFetching: loadingSizes } =
     useGetProductVariantSizesQuery(
@@ -112,11 +122,18 @@ export default function QuickViewModal({
 
   // --- 2. Effects ---
   useEffect(() => {
-    if (variants.length === 0 && !loadingVariants) {
+    if (loadingVariants) return;
+    if (variants.length > 0) {
+      setSelectedVariant((prev) => {
+        if (!prev) return variants[0] as ProductVariantUI;
+        const stillInList = variants.some((v) => v.id === prev.id);
+        return stillInList ? prev : (variants[0] as ProductVariantUI);
+      });
+    } else {
       setSelectedVariant({
         id: productBase.id,
         name: "Default",
-        price: 0,
+        price: productBase.price ?? 0,
         stock: productBase.stock,
         sku: productBase.sku ?? "",
         image: typeof productBase.image === "string" ? productBase.image : null,
@@ -133,12 +150,18 @@ export default function QuickViewModal({
   }, [selectedVariant]);
 
   // --- 3. Calculations ---
+  // Harga utama dari variant yang dipilih (API mengembalikan price per variant), bukan base + tambahan
   const basePrice = toNumber(productBase.price);
   const variantPrice = toNumber(selectedVariant?.price);
   const sizePrice = toNumber(selectedSize?.price);
 
-  const currentPrice = basePrice + variantPrice + sizePrice;
-  const currentMarkupPrice = toNumber(productBase.markup_price);
+  const currentPrice =
+    variants.length > 0 && selectedVariant
+      ? variantPrice + sizePrice
+      : basePrice + sizePrice;
+  const currentMarkupPrice =
+    toNumber(selectedVariant?.markup_price) ||
+    toNumber(productBase.markup_price);
 
   const currentStock = toNumber(
     selectedSize?.stock ?? selectedVariant?.stock ?? productBase.stock,

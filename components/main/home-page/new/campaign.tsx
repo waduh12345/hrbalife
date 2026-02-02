@@ -105,7 +105,7 @@ function CampaignContent() {
 
   // === 2. EDITABLE STATE: Labels & Static Texts ===
   const [texts, setTexts] = useState({
-    badge: "BLACKBOX.INC Exclusive",
+    badge: "HerbalCare Exclusive",
     loading: "Loading vouchers...",
     error: "Failed to load vouchers.",
     labelDays: "Days",

@@ -87,7 +87,7 @@ export default function PrivacyPolicyPage() {
           >
             Privasi Anda penting bagi kami. Dokumen ini menjelaskan bagaimana
             kami mengumpulkan, menggunakan, menyimpan, dan melindungi data
-            pribadi Anda saat menggunakan layanan BLACKBOX.INC
+            pribadi Anda saat menggunakan layanan HerbalCare
           </motion.p>
           <motion.p variants={fadeUp} className="mt-2 text-xs text-gray-500">
             Terakhir diperbarui: {updated}
@@ -150,7 +150,7 @@ export default function PrivacyPolicyPage() {
             <div id="pengantar">
               <p>
                 {`Kebijakan Privasi ini berlaku untuk seluruh layanan, situs web,
-                dan fitur BLACKBOX.INC. Dengan mengakses atau
+                dan fitur HerbalCare. Dengan mengakses atau
                 menggunakan layanan, Anda menyetujui praktik yang dijelaskan di
                 sini.`}
               </p>

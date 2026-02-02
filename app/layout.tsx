@@ -18,8 +18,8 @@ const barlowCondensed = Barlow_Condensed({
 });
 
 export const metadata: Metadata = {
-  title: "BLACKBOX.INC",
-  description: "Raih Kulit Sehat & Bersinar dengan BLACKBOX.INC Shop",
+  title: "HerbalCare",
+  description: "Raih Kulit Sehat & Bersinar dengan HerbalCare Shop",
   icons: {
     icon: "/images/new/logo/BLACKBOXINC-Shop.png",
   },

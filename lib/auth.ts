@@ -9,7 +9,7 @@ export const authOptions: AuthOptions = {
   },
   // debug: true,
   pages: {
-    signIn: "/auth/login",
+    signIn: "/login",
   },
   providers: [
     CredentialsProvider({
@@ -17,7 +17,7 @@ export const authOptions: AuthOptions = {
         email: { label: "Email", type: "text" },
         password: { label: "Password", type: "password" },
       },
-      authorize: async (credentials) => {
+      authorize: async (credentials, _req) => {
         if (!credentials) return null;
 
         // Step 1: Login untuk mendapatkan token
@@ -63,9 +63,9 @@ export const authOptions: AuthOptions = {
           email: user.email,
           name: user.name,
           phone: user.phone,
-          token: token,
-          roles: user.roles || [],
-          shop: user.shop,
+          token: token as string,
+          roles: user.roles ?? [],
+          shop: user.shop ?? null,
         };
       },
     }),
@@ -87,8 +87,8 @@ export const authOptions: AuthOptions = {
       if (session.user) {
         session.user.id = token.id as number;
         session.user.token = token.token as string;
-        session.user.roles = token.roles as User["roles"];
-        session.user.shop = token.shop as User["shop"];
+        session.user.roles = (token.roles as User["roles"]) ?? [];
+        session.user.shop = (token.shop as User["shop"]) ?? null;
       }
       return session;
     },

@@ -1,13 +1,23 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import { motion } from 'framer-motion'
 import Image from 'next/image'
 
+gsap.registerPlugin(ScrollTrigger)
+
 /* =====================
-   Dummy Data
+   Types & Dummy Data
 ===================== */
-const concerns = [
+interface ConcernItem {
+  id: number
+  title: string
+  image: string
+}
+
+const concerns: ConcernItem[] = [
   {
     id: 1,
     title: 'Tidur Nyenyak',
@@ -25,15 +35,25 @@ const concerns = [
   },
 ]
 
+const AUTO_SLIDE_MS = 4000
+const SLIDE_DURATION = 0.5
+
 export default function ShopByConcern() {
   const [loading, setLoading] = useState(true)
+  const [currentIndex, setCurrentIndex] = useState(0)
+
+  // Auto-slide on mobile
+  useEffect(() => {
+    const id = setInterval(() => {
+      setCurrentIndex(prev => (prev + 1) % concerns.length)
+    }, AUTO_SLIDE_MS)
+    return () => clearInterval(id)
+  }, [])
 
   useEffect(() => {
-    // Fake loading (UX polish)
     const t = setTimeout(() => setLoading(false), 600)
 
-    // GSAP cinematic reveal
-    gsap.from('.concern-card', {
+    gsap.from('.concern-card-desktop', {
       scrollTrigger: {
         trigger: '.concern-grid',
         start: 'top 80%',
@@ -49,19 +69,79 @@ export default function ShopByConcern() {
     return () => clearTimeout(t)
   }, [])
 
+  const goTo = useCallback((index: number) => {
+    setCurrentIndex(index)
+  }, [])
+
   return (
-    <section className="max-w-7xl mx-auto px-8 py-20">
-      <h2 className="text-3xl font-semibold mb-10">
+    <section className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-12 md:py-20">
+      <h2 className="text-2xl sm:text-3xl font-semibold mb-6 md:mb-10 text-gray-900">
         Shop by Concern
       </h2>
 
-      <div className="concern-grid grid grid-cols-3 gap-8">
+      {/* Mobile: Carousel - 1 per slide, auto-slide */}
+      <div className="md:hidden overflow-hidden rounded-2xl">
+        <motion.div
+          className="flex"
+          style={{ width: `${concerns.length * 100}%` }}
+          animate={{
+            x: `-${currentIndex * (100 / concerns.length)}%`,
+          }}
+          transition={{
+            type: 'tween',
+            duration: SLIDE_DURATION,
+            ease: [0.25, 0.46, 0.45, 0.94],
+          }}
+        >
+          {loading
+            ? concerns.map((_, i) => (
+                <div
+                  key={i}
+                  className="flex-shrink-0"
+                  style={{ width: `${100 / concerns.length}%` }}
+                >
+                  <ConcernSkeleton />
+                </div>
+              ))
+            : concerns.map(item => (
+                <div
+                  key={item.id}
+                  className="flex-shrink-0"
+                  style={{ width: `${100 / concerns.length}%` }}
+                >
+                  <ConcernCard item={item} />
+                </div>
+              ))}
+        </motion.div>
+        {/* Dots */}
+        {!loading && (
+          <div className="flex justify-center gap-2 mt-4">
+            {concerns.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => goTo(i)}
+                className={`h-2 rounded-full transition-all duration-300 ${
+                  i === currentIndex
+                    ? 'w-6 bg-green-600'
+                    : 'w-2 bg-gray-300 hover:bg-gray-400'
+                }`}
+                aria-label={`Go to slide ${i + 1}`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Desktop: Grid 3 columns */}
+      <div className="concern-grid hidden md:grid grid-cols-3 gap-8">
         {loading
           ? Array(3)
               .fill(0)
               .map((_, i) => <ConcernSkeleton key={i} />)
           : concerns.map(item => (
-              <ConcernCard key={item.id} item={item} />
+              <div key={item.id} className="concern-card-desktop">
+                <ConcernCard item={item} />
+              </div>
             ))}
       </div>
     </section>
@@ -71,9 +151,9 @@ export default function ShopByConcern() {
 /* =====================
    Concern Card
 ===================== */
-function ConcernCard({ item }: any) {
+function ConcernCard({ item }: { item: ConcernItem }) {
   return (
-    <div className="concern-card group relative h-72 rounded-3xl overflow-hidden shadow-soft cursor-pointer">
+    <div className="concern-card group relative w-full h-72 rounded-2xl md:rounded-3xl overflow-hidden shadow-soft cursor-pointer">
       {/* Image */}
       <Image
         src={item.image}
@@ -100,6 +180,6 @@ function ConcernCard({ item }: any) {
 ===================== */
 function ConcernSkeleton() {
   return (
-    <div className="h-72 rounded-3xl bg-gray-200 animate-pulse" />
+    <div className="h-72 w-full rounded-2xl md:rounded-3xl bg-gray-200 animate-pulse" />
   )
 }

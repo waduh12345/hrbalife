@@ -44,7 +44,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, menuItems }) => {
       // tutup sidebar di mobile
       onClose?.();
       // next-auth signOut + redirect
-      await signOut({ callbackUrl: "/auth/login", redirect: true });
+      await signOut({ callbackUrl: "/login", redirect: true });
     }
   };
 
@@ -74,7 +74,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose, menuItems }) => {
             {/* shopLogo is unused */}
             <div className="ml-2">
               <h2 className="text-gray-900 text-lg font-bold font-italic">
-                BLACKBOX.INC
+                HerbalCare
               </h2>
             </div>
           </div>

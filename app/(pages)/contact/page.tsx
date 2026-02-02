@@ -44,7 +44,7 @@ export default function ContactPage() {
     const to = "hello@blackboxinc.example"; // ganti sesuai email brand
     const s = encodeURIComponent(subject || "Pertanyaan dari Website");
     const body = encodeURIComponent(
-      `Halo BLACKBOX.INC,\n\nNama: ${name}\nEmail: ${email}\n\n${message}`
+      `Halo HerbalCare,\n\nNama: ${name}\nEmail: ${email}\n\n${message}`
     );
     return `mailto:${to}?subject=${s}&body=${body}`;
   }, [name, email, subject, message]);

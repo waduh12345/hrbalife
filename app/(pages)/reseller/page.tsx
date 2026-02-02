@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import { CheckCircle, ArrowRight, UserPlus, ShieldCheck, Tag, ShoppingBag } from 'lucide-react'
+import { CheckCircle, ArrowRight } from 'lucide-react'
 import Image from 'next/image'
 
 gsap.registerPlugin(ScrollTrigger)
@@ -62,13 +62,6 @@ const resellerLevels = [
 ]
 
 
-const stepIcons = [
-  <UserPlus className="w-16 h-16 text-accent text-black top-1/2 transform -translate-y-1/2" />,      // Daftar
-  <ShieldCheck className="w-16 h-16 text-accent text-black top-1/2 transform -translate-y-1/2" />,   // Verifikasi
-  <Tag className="w-16 h-16 text-accent text-black top-1/2 transform -translate-y-1/2" />,           // Harga khusus
-  <ShoppingBag className="w-16 h-16 text-accent text-black top-1/2 transform -translate-y-1/2" />,   // Mulai jual
-]
-
 export default function ResellerPage() {
   const [loading, setLoading] = useState(true)
 
@@ -84,7 +77,7 @@ export default function ResellerPage() {
      GSAP Reveal
   ===================== */
   useEffect(() => {
-    gsap.utils.toArray('[data-reveal]').forEach((el: any) => {
+    gsap.utils.toArray<Element>('[data-reveal]').forEach((el) => {
       gsap.fromTo(
         el,
         { opacity: 0, y: 40 },

@@ -1,7 +1,7 @@
 const translations = {
   "hero-title-1": "Tingkatkan Gaya",
   "hero-title-2": "Elegan & Modern",
-  "hero-title-3": "bersama BLACKBOX.INC Shop",
+  "hero-title-3": "bersama HerbalCare Shop",
   "hero-subtitle":
     "Koleksi fashion pilihan untuk tampilan harian hingga special occasion — potongan rapi, material premium, dan detail yang memikat.",
   "hero-cta-1": "Belanja Sekarang",
@@ -23,7 +23,7 @@ const translations = {
   "cta-title-1": "Upgrade",
   "cta-title-2": "Wardrobe-mu",
   "cta-subtitle":
-    "Rasakan fit yang tepat, percaya diri, dan gaya khas bersama BLACKBOX.INC. Temukan staples dan statement pieces favoritmu.",
+    "Rasakan fit yang tepat, percaya diri, dan gaya khas bersama HerbalCare. Temukan staples dan statement pieces favoritmu.",
   "cta-btn": "Belanja Sekarang",
 
   "testimony-title": "Apa Kata Mereka?",

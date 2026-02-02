@@ -17,6 +17,7 @@ import { useSession } from "next-auth/react";
 import useCart from "@/hooks/use-cart";
 import { MarqueeBanner } from "../ui/marque-text";
 import clsx from "clsx";
+import Image from "next/image";
 
 /* ---------- Types ---------- */
 interface TranslationContent {
@@ -453,12 +454,7 @@ export default function Header() {
                 href="/"
                 className="group inline-flex flex-col items-center text-center select-none"
               >
-                <h1 className="font-extrabold tracking-[0.2em] text-black text-lg md:text-xl leading-none">
-                  BLACKBOX.INC
-                </h1>
-                <span className="mt-1 text-[8px] md:text-[10px] uppercase tracking-[0.3em] text-gray-600">
-                  {t.tagline}
-                </span>
+                <Image src="/images/logo-herbal-care.webp" alt="HerbalCare" width={100} height={100} />
               </Link>
             </div>
 
@@ -567,7 +563,7 @@ export default function Header() {
               </div>
               <SearchEngine
                 className="w-full"
-                placeholder="Cari di BLACKBOX.INC…"
+                placeholder="Cari di HerbalCare…"
                 autoFocusShortcut={false}
                 onClose={toggleMobileMenu}
               />

@@ -55,7 +55,7 @@ export default function WhyJoinPesantrenSection() {
         <p className="text-gray-700 max-w-2xl mx-auto mb-12">
           {" "}
           {/* Adjusted text color for consistency */}
-          Bergabung dengan BLACKBOX.INC bukan sekadar berbelanja atau
+          Bergabung dengan HerbalCare bukan sekadar berbelanja atau
           bertransaksi, tapi menjadi bagian dari gerakan ekonomi syariah yang
           memberdayakan komunitas pesantren dan masyarakat.
         </p>

@@ -83,7 +83,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-12 lg:gap-16">
           {/* 1. BRAND & VISION */}
           <div
-            className="md:col-span-12 lg:col-span-5 flex flex-col justify-between"
+            className="md:col-span-12 lg:col-span-6 flex flex-col justify-between"
             data-footer-animate
           >
             <div className="space-y-6">
@@ -129,7 +129,7 @@ export default function Footer() {
 
           {/* 2. NAVIGATION LINKS */}
           <div
-            className="md:col-span-6 lg:col-span-4 grid grid-cols-2 gap-8"
+            className="md:col-span-6 lg:col-span-3 grid grid-cols-2 gap-8"
             data-footer-animate
           >
             <div>

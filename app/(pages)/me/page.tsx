@@ -26,6 +26,8 @@ import {
   X,
   FileText,
   Award,
+  LayoutDashboard,
+  Leaf,
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 import {
@@ -139,13 +141,18 @@ const useUploadPaymentProofMutation = () => {
       formData.append("payment_proof", file);
       formData.append("_method", "PUT");
 
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "";
+      const { getSession } = await import("next-auth/react");
+      const session = await getSession();
+      const token = (session?.user as { token?: string })?.token;
       const response = await fetch(
-        `https://cms.BLACKBOXINCshop.com/api/v1/public/transaction/${transactionId}/manual?_method=PUT`,
+        `${baseUrl}/public/transaction/${transactionId}/manual?_method=PUT`,
         {
-          method: "POST", // Using POST with _method=PUT for form-data
+          method: "POST",
           body: formData,
           headers: {
-            // Don't set Content-Type, let browser set it for FormData
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            Accept: "application/json",
           },
         }
       );
@@ -599,19 +606,40 @@ export default function ProfilePage() {
       phone: u.phone ?? prev.phone,
       joinDate: u.created_at ?? prev.joinDate,
       image: apiImage || prev.image,
+      loyaltyPoints: u.points ?? prev.loyaltyPoints,
     }));
   }, [currentUserResp]);
 
-  const tabs = [
-    {
-      id: "dashboard",
-      label: "Dashboard",
-      icon: <BarChart3 className="w-5 h-5" />,
-    },
-    { id: "profile", label: "Profile", icon: <UserIcon className="w-5 h-5" /> },
-    { id: "addresses", label: "Alamat", icon: <MapPin className="w-5 h-5" /> },
-    { id: "orders", label: "Pesanan", icon: <Package className="w-5 h-5" /> },
-  ] as const;
+  const isSuperAdmin = useMemo(() => {
+    const u = currentUserResp;
+    const roles = u?.roles ?? [];
+    return roles.some((r: { name: string }) => r.name === "superadmin");
+  }, [currentUserResp]);
+
+  const tabs = useMemo(() => {
+    const base = [
+      {
+        id: "dashboard" as const,
+        label: "Dashboard",
+        icon: <BarChart3 className="w-5 h-5" />,
+      },
+      { id: "profile" as const, label: "Profil", icon: <UserIcon className="w-5 h-5" /> },
+      { id: "addresses" as const, label: "Alamat", icon: <MapPin className="w-5 h-5" /> },
+      { id: "orders" as const, label: "Pesanan", icon: <Package className="w-5 h-5" /> },
+    ];
+    if (isSuperAdmin) {
+      return [
+        ...base,
+        {
+          id: "admin" as const,
+          label: "Dashboard Admin",
+          icon: <LayoutDashboard className="w-5 h-5" />,
+          href: "/admin/dashboard",
+        },
+      ];
+    }
+    return base;
+  }, [isSuperAdmin]);
 
   const getStatusColor = (status: Order["status"]) => {
     switch (status) {
@@ -760,125 +788,145 @@ export default function ProfilePage() {
 
   /* --------------------- UI --------------------- */
   return (
-    <div className="min-h-screen bg-white pt-10">
-      <div className="container mx-auto px-4 lg:px-12 pb-12">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-50/30 pt-6 sm:pt-10">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-12 pb-12">
         {/* Header */}
-        <div className="mb-10 border-b border-gray-200 pb-6">
+        <div className="mb-6 sm:mb-10 border-b border-green-100 pb-6">
           <div className="text-center">
-            <div className="inline-flex items-center gap-2 bg-gray-100 px-4 py-2 rounded-full mb-4">
-              <span className="text-sm font-medium text-black uppercase tracking-wider">
-                Client Dashboard
+            <div className="inline-flex items-center gap-2 bg-green-100 text-green-700 px-4 py-2 rounded-full mb-4">
+              <Leaf className="w-4 h-4" />
+              <span className="text-sm font-semibold">
+                Akun Saya
               </span>
             </div>
-            <h1 className="text-4xl lg:text-5xl font-extrabold text-black mb-4 uppercase">
-              Welcome Back,{" "}
-              <span className="text-gray-700">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-3">
+              Selamat Datang,{" "}
+              <span className="text-green-600">
                 {userProfile.fullName.split(" ")[0]}
               </span>
             </h1>
-            <p className="text-gray-700 max-w-2xl mx-auto text-lg">
-              Manage your profile, addresses, and track your exclusive orders.
+            <p className="text-gray-600 max-w-2xl mx-auto text-base sm:text-lg">
+              Kelola profil, alamat, dan lacak pesanan Anda.
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Sidebar */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl p-6 shadow-xl border border-gray-200 sticky top-24">
-              <div className="text-center mb-6 pb-6 border-b border-gray-200">
-                {/* Avatar B&W */}
-                <div className="relative w-24 h-24 mx-auto mb-4 border-4 border-black rounded-full">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8">
+          {/* Sidebar - Mobile: full width, Desktop: sticky */}
+          <div className="lg:col-span-1 order-2 lg:order-1">
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-green-100 sticky top-24">
+              <div className="text-center mb-6 pb-6 border-b border-green-100">
+                <div className="relative w-24 h-24 mx-auto mb-4 border-4 border-green-200 rounded-full overflow-hidden ring-4 ring-green-50">
                   <Image
                     src={imgSrc}
                     alt={userProfile.fullName || "Avatar"}
                     fill
-                    className="object-cover rounded-full grayscale-[10%]"
+                    className="object-cover rounded-full"
                     onError={() => setImgSrc(DEFAULT_AVATAR)}
                     unoptimized
                   />
-                  <div
-                    className="absolute bottom-0 right-0 w-6 h-6 bg-black rounded-full flex items-center justify-center cursor-pointer"
+                  <button
+                    type="button"
+                    className="absolute bottom-0 right-0 w-7 h-7 bg-green-600 rounded-full flex items-center justify-center cursor-pointer hover:bg-green-700 transition-colors shadow-lg"
                     onClick={openEditProfileModal}
                   >
-                    <Camera className="w-3 h-3 text-white" />
-                  </div>
+                    <Camera className="w-3.5 h-3.5 text-white" />
+                  </button>
                 </div>
-                <h3 className="font-bold text-black uppercase tracking-wider">
+                <h3 className="font-bold text-gray-900 text-lg">
                   {userProfile.fullName}
                 </h3>
-                <p className="text-sm text-gray-700">{userProfile.email}</p>
+                <p className="text-sm text-gray-600 truncate max-w-full px-2">{userProfile.email}</p>
               </div>
 
               <nav className="space-y-2 mb-6">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-bold uppercase transition-all duration-300 text-sm tracking-wider ${
-                      activeTab === tab.id
-                        ? "bg-black text-white shadow-lg" // Active B&W
-                        : "text-gray-700 hover:bg-gray-100 hover:text-black" // Inactive B&W
-                    }`}
-                  >
-                    {tab.icon}
-                    {tab.label}
-                  </button>
-                ))}
+                {tabs.map((tab) => {
+                  const isAdminTab = "href" in tab && tab.href;
+                  if (isAdminTab) {
+                    return (
+                      <button
+                        key="admin"
+                        onClick={() => router.push("/admin/dashboard")}
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all duration-300 text-sm bg-green-100 text-green-700 hover:bg-green-600 hover:text-white border border-green-200"
+                      >
+                        {tab.icon}
+                        {tab.label}
+                      </button>
+                    );
+                  }
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() =>
+                        setActiveTab(
+                          tab.id as "dashboard" | "profile" | "addresses" | "orders"
+                        )
+                      }
+                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all duration-300 text-sm ${
+                        activeTab === tab.id
+                          ? "bg-green-600 text-white shadow-lg shadow-green-500/30"
+                          : "text-gray-700 hover:bg-green-50 hover:text-green-700 border border-transparent hover:border-green-200"
+                      }`}
+                    >
+                      {tab.icon}
+                      {tab.label}
+                    </button>
+                  );
+                })}
               </nav>
 
               <button
                 onClick={handleLogout}
                 disabled={isLoggingOut}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg font-bold text-red-600 hover:bg-red-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed uppercase tracking-wider"
-                title={isLoggingOut ? "Logging out..." : "Log Out"}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-red-600 hover:bg-red-50 border border-red-100 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                title={isLoggingOut ? "Keluar..." : "Keluar"}
               >
                 <LogOut className="w-5 h-5" />
-                {isLoggingOut ? "Logging Out..." : "Log Out"}
+                {isLoggingOut ? "Keluar..." : "Keluar"}
               </button>
             </div>
           </div>
 
           {/* Main Content */}
-          <div className="lg:col-span-3">
-            <div className="bg-white rounded-xl p-8 shadow-xl border border-gray-200">
+          <div className="lg:col-span-3 order-1 lg:order-2">
+            <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-lg border border-green-100">
               {/* --- 1. Dashboard --- */}
               {activeTab === "dashboard" && (
-                <div className="space-y-10">
-                  <div className="flex items-center gap-3 mb-6 border-b border-gray-100 pb-4">
-                    <div className="w-10 h-10 bg-black rounded-lg flex items-center justify-center text-white">
+                <div className="space-y-8">
+                  <div className="flex items-center gap-3 mb-6 border-b border-green-100 pb-4">
+                    <div className="w-10 h-10 bg-green-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-green-500/30">
                       <BarChart3 className="w-5 h-5" />
                     </div>
-                    <h2 className="text-2xl font-extrabold text-black uppercase tracking-wider">
-                      Dashboard Summary
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                      Ringkasan Dashboard
                     </h2>
                   </div>
 
-                  {/* Stat Cards B&W */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-gray-800 rounded-lg p-6 text-white shadow-lg">
+                  {/* Stat Cards - Green theme */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+                    <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-2xl p-6 text-white shadow-lg shadow-green-500/30">
                       <div className="flex items-center gap-3 mb-3">
-                        <Package className="w-6 h-6 text-gray-300" />
-                        <span className="font-semibold uppercase text-sm">
-                          Total Orders
+                        <Package className="w-6 h-6 text-green-100" />
+                        <span className="font-semibold text-sm text-green-100">
+                          Total Pesanan
                         </span>
                       </div>
-                      <div className="text-4xl font-extrabold">
+                      <div className="text-3xl sm:text-4xl font-bold">
                         {userProfile.totalOrders}
                       </div>
-                      <div className="text-gray-400 text-xs mt-1">
-                        Since joining
+                      <div className="text-green-100 text-xs mt-1">
+                        Sejak bergabung
                       </div>
                     </div>
 
-                    <div className="bg-gray-50 rounded-lg p-6 text-black shadow-lg border border-gray-200">
+                    <div className="bg-green-50 rounded-2xl p-6 border border-green-100 shadow-sm">
                       <div className="flex items-center gap-3 mb-3">
-                        <CreditCard className="w-6 h-6 text-gray-600" />
-                        <span className="font-semibold uppercase text-sm">
-                          Total Spent
+                        <CreditCard className="w-6 h-6 text-green-600" />
+                        <span className="font-semibold text-sm text-gray-700">
+                          Total Belanja
                         </span>
                       </div>
-                      <div className="text-3xl font-extrabold">
+                      <div className="text-2xl sm:text-3xl font-bold text-gray-900">
                         {new Intl.NumberFormat("id-ID", {
                           style: "currency",
                           currency: "IDR",
@@ -886,37 +934,37 @@ export default function ProfilePage() {
                         }).format(userProfile.totalSpent)}
                       </div>
                       <div className="text-gray-600 text-xs mt-1">
-                        Lifetime value
+                        Nilai total
                       </div>
                     </div>
 
-                    <div className="bg-gray-50 rounded-lg p-6 text-black shadow-lg border border-gray-200">
+                    <div className="bg-green-50 rounded-2xl p-6 border border-green-100 shadow-sm">
                       <div className="flex items-center gap-3 mb-3">
-                        <Award className="w-6 h-6 text-black" />
-                        <span className="font-semibold uppercase text-sm">
-                          Loyalty Points
+                        <Award className="w-6 h-6 text-green-600" />
+                        <span className="font-semibold text-sm text-gray-700">
+                          Poin Loyalitas
                         </span>
                       </div>
-                      <div className="text-4xl font-extrabold">
+                      <div className="text-3xl sm:text-4xl font-bold text-green-600">
                         {userProfile.loyaltyPoints}
                       </div>
                       <div className="text-gray-600 text-xs mt-1">
-                        Exchangeable for discounts
+                        Tukar diskon
                       </div>
                     </div>
                   </div>
 
                   {/* Latest Orders */}
                   <div>
-                    <div className="flex items-center justify-between mb-6 border-b border-gray-100 pb-3">
-                      <h3 className="text-xl font-bold text-black uppercase">
-                        Latest Orders
+                    <div className="flex items-center justify-between mb-6 border-b border-green-100 pb-3">
+                      <h3 className="text-lg sm:text-xl font-bold text-gray-900">
+                        Pesanan Terbaru
                       </h3>
                       <button
                         onClick={() => setActiveTab("orders")}
-                        className="text-black font-semibold hover:underline text-sm uppercase"
+                        className="text-green-600 font-semibold hover:text-green-700 hover:underline text-sm"
                       >
-                        View All
+                        Lihat Semua
                       </button>
                     </div>
 
@@ -924,17 +972,17 @@ export default function ProfilePage() {
                       {(orders || []).slice(0, 3).map((order) => (
                         <div
                           key={order.id}
-                          className="border border-gray-200 rounded-lg p-4 hover:border-black transition-colors cursor-pointer"
+                          className="border border-green-100 rounded-xl p-4 hover:border-green-300 hover:shadow-md transition-all cursor-pointer bg-gray-50/50"
                           onClick={() => openOrderDetailModal(order.id)}
                         >
-                          <div className="flex items-center justify-between mb-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
                             <div>
-                              <h4 className="font-bold text-black uppercase tracking-wider">
+                              <h4 className="font-bold text-gray-900">
                                 #{order.orderNumber}
                               </h4>
                               <p className="text-xs text-gray-600">
                                 {new Date(order.date).toLocaleDateString(
-                                  "en-US",
+                                  "id-ID",
                                   {
                                     month: "short",
                                     day: "numeric",
@@ -943,12 +991,12 @@ export default function ProfilePage() {
                                 )}
                               </p>
                             </div>
-                            <div className="text-right">
-                              <div className="font-extrabold text-lg text-black">
+                            <div className="text-left sm:text-right">
+                              <div className="font-bold text-lg text-green-600">
                                 {formatRupiahWithRp(order.grand_total)}
                               </div>
                               <span
-                                className={`inline-block px-3 py-1 rounded-full text-xs font-semibold uppercase ${getStatusColor(
+                                className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(
                                   order.status
                                 )}`}
                               >
@@ -960,19 +1008,19 @@ export default function ProfilePage() {
                             {order.items.slice(0, 3).map((item, index) => (
                               <div
                                 key={`${order.id}-${item.id}-${index}`}
-                                className="w-10 h-10 relative rounded-md overflow-hidden border border-gray-200"
+                                className="w-10 h-10 relative rounded-lg overflow-hidden border border-green-100"
                               >
                                 <Image
                                   src={item.image}
                                   alt={item.name}
                                   fill
-                                  className="object-cover grayscale"
+                                  className="object-cover"
                                 />
                               </div>
                             ))}
                             {order.items.length > 3 && (
                               <span className="text-sm text-gray-500">
-                                +{order.items.length - 3} others
+                                +{order.items.length - 3} lainnya
                               </span>
                             )}
                           </div>
@@ -986,86 +1034,84 @@ export default function ProfilePage() {
               {/* --- 2. Profile --- */}
               {activeTab === "profile" && (
                 <div className="space-y-8">
-                  <div className="flex items-center justify-between mb-6 border-b border-gray-100 pb-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-green-100 pb-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-black rounded-lg flex items-center justify-center text-white">
+                      <div className="w-10 h-10 bg-green-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-green-500/30">
                         <UserIcon className="w-5 h-5" />
                       </div>
-                      <h2 className="text-2xl font-extrabold text-black uppercase tracking-wider">
-                        Client Information
+                      <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                        Informasi Akun
                       </h2>
                     </div>
                     <button
                       onClick={openEditProfileModal}
                       disabled={isPrefillingProfile}
-                      className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg font-semibold hover:bg-gray-800 transition-colors disabled:opacity-50 uppercase tracking-wider text-sm"
+                      className="flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 text-sm shadow-lg shadow-green-500/30"
                     >
                       <Edit3 className="w-4 h-4" />
-                      {isPrefillingProfile ? "Loading..." : "Edit Profile"}
+                      {isPrefillingProfile ? "Memuat..." : "Edit Profil"}
                     </button>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-6">
-                      {/* Full Name */}
                       <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">
-                          Full Name
+                        <label className="block text-sm font-semibold text-gray-600 mb-1">
+                          Nama Lengkap
                         </label>
-                        <p className="font-medium text-lg text-black">
+                        <p className="font-medium text-lg text-gray-900">
                           {userProfile.fullName}
                         </p>
                       </div>
-                      {/* Email */}
                       <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">
-                          Email Address
+                        <label className="block text-sm font-semibold text-gray-600 mb-1">
+                          Email
                         </label>
-                        <p className="font-medium text-lg text-black">
+                        <p className="font-medium text-lg text-gray-900">
                           {userProfile.email}
                         </p>
                       </div>
-                      {/* Phone */}
                       <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">
-                          Phone Number
+                        <label className="block text-sm font-semibold text-gray-600 mb-1">
+                          Nomor Telepon
                         </label>
-                        <p className="font-medium text-lg text-black">
+                        <p className="font-medium text-lg text-gray-900">
                           {userProfile.phone || "-"}
                         </p>
                       </div>
-                      {/* Birth Date */}
                       <div>
-                        <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">
-                          Birth Date
+                        <label className="block text-sm font-semibold text-gray-600 mb-1">
+                          Tanggal Lahir
                         </label>
-                        <p className="font-medium text-lg text-black">
+                        <p className="font-medium text-lg text-gray-900">
                           {userProfile.birthDate || "-"}
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
-                    <h3 className="font-bold text-black mb-4 uppercase tracking-wider">
-                      Account Status
+                  <div className="bg-green-50 rounded-2xl p-6 border border-green-100">
+                    <h3 className="font-bold text-gray-900 mb-4">
+                      Status Akun
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                       <div>
-                        <span className="text-gray-600">Member Since:</span>
-                        <div className="font-semibold text-black">
-                          {new Date(userProfile.joinDate).toLocaleDateString(
-                            "en-US",
-                            { year: "numeric", month: "long", day: "numeric" }
-                          )}
+                        <span className="text-gray-600">Member sejak:</span>
+                        <div className="font-semibold text-gray-900">
+                          {userProfile.joinDate
+                            ? new Date(userProfile.joinDate).toLocaleDateString(
+                                "id-ID",
+                                { year: "numeric", month: "long", day: "numeric" }
+                              )
+                            : "-"}
                         </div>
                       </div>
                       <div>
-                        <span className="text-gray-600">Account Status:</span>
+                        <span className="text-gray-600">Status:</span>
                         <div className="flex items-center gap-2">
-                          <CheckCircle className="w-4 h-4 text-black fill-gray-300" />
-                          <span className="font-semibold text-black">
-                            Verified
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                          <span className="font-semibold text-gray-900">
+                            Terverifikasi
                           </span>
                         </div>
                       </div>
@@ -1077,84 +1123,87 @@ export default function ProfilePage() {
               {/* --- 3. Addresses --- */}
               {activeTab === "addresses" && (
                 <div className="space-y-8">
-                  <div className="flex items-center justify-between mb-6 border-b border-gray-100 pb-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 border-b border-green-100 pb-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-black rounded-lg flex items-center justify-center text-white">
+                      <div className="w-10 h-10 bg-green-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-green-500/30">
                         <MapPin className="w-5 h-5" />
                       </div>
-                      <h2 className="text-2xl font-extrabold text-black uppercase tracking-wider">
-                        Shipping Addresses
+                      <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                        Alamat Pengiriman
                       </h2>
                     </div>
                     <button
                       onClick={openCreateAddress}
-                      className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg font-semibold hover:bg-gray-800 transition-colors uppercase tracking-wider text-sm"
+                      className="flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors text-sm shadow-lg shadow-green-500/30"
                     >
                       <Plus className="w-4 h-4" />
-                      Add New
+                      Tambah Alamat
                     </button>
                   </div>
 
-                  {/* Simplified Mock Address List B&W */}
+                  {/* Address List - from API */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="border-2 border-black bg-gray-50 rounded-lg p-6 transition-all">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="font-bold text-black uppercase tracking-wider text-lg">
-                            Primary Address
-                          </h3>
-                          <span className="px-2 py-1 bg-black text-white text-xs font-semibold rounded-full">
-                            Default
-                          </span>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            className="p-2 text-gray-400 hover:text-black transition-colors"
-                            title="Edit address"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="text-sm text-gray-700">
-                        <p className="text-black font-medium text-base">
-                          Jalan Kenanga Raya Blok B No. 12
-                        </p>
-                        <p>Kel. Contoh, Kec. Testing, Jakarta Selatan</p>
-                        <p>Jakarta, 12345</p>
-                      </div>
-                    </div>
-                    <div className="border-2 border-gray-200 rounded-lg p-6 transition-all hover:border-gray-500">
-                      <div className="flex items-start justify-between mb-4">
-                        <h3 className="font-bold text-black uppercase tracking-wider text-lg">
-                          Secondary Address
-                        </h3>
-                        <div className="flex gap-2">
-                          <button
-                            className="p-2 text-gray-400 hover:text-black transition-colors"
-                            title="Edit address"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-                          <button
-                            className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                            title="Delete address"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                      <div className="text-sm text-gray-700">
-                        <p className="text-black font-medium text-base">
-                          Apartemen Signature Tower Lt. 20
-                        </p>
-                        <p>Jl. Sudirman No. 5, Bandung</p>
-                        <p>Jawa Barat, 40111</p>
-                        <button className="text-black text-sm font-semibold hover:underline mt-2">
-                          Set as Default
+                    {(userAddressList?.data ?? []).length === 0 ? (
+                      <div className="col-span-full text-center py-12 bg-green-50 rounded-2xl border border-green-100">
+                        <MapPin className="w-12 h-12 text-green-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-bold text-gray-900 mb-2">Belum ada alamat</h3>
+                        <p className="text-gray-600 mb-4">Tambahkan alamat pengiriman untuk memudahkan checkout</p>
+                        <button
+                          onClick={openCreateAddress}
+                          className="px-4 py-2 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700"
+                        >
+                          Tambah Alamat
                         </button>
                       </div>
-                    </div>
+                    ) : (
+                      (userAddressList?.data ?? []).map((addr: UserAddress) => (
+                        <div
+                          key={addr.id}
+                          className={`rounded-2xl p-6 transition-all border ${
+                            addr.is_default
+                              ? "border-green-500 bg-green-50"
+                              : "border-green-100 bg-white hover:border-green-200"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h3 className="font-bold text-gray-900 text-lg">
+                                {addr.is_default ? "Alamat Utama" : "Alamat"}
+                              </h3>
+                              {addr.is_default && (
+                                <span className="px-2 py-1 bg-green-600 text-white text-xs font-semibold rounded-full">
+                                  Default
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => openEditAddress(addr.id)}
+                                className="p-2 text-gray-500 hover:text-green-600 transition-colors rounded-lg hover:bg-green-50"
+                                title="Edit alamat"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteAddressApi(addr.id)}
+                                className="p-2 text-gray-500 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50"
+                                title="Hapus alamat"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                          <div className="text-sm text-gray-700">
+                            <p className="text-gray-900 font-medium">
+                              {findName(provinceList, addr.rajaongkir_province_id)} - {findName(cityList, addr.rajaongkir_city_id)} - {findName(districtList, addr.rajaongkir_district_id)}
+                            </p>
+                            <p className="mt-1">{addr.address_line_1}</p>
+                            {addr.address_line_2 && <p>{addr.address_line_2}</p>}
+                            <p>{addr.postal_code}</p>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               )}
@@ -1162,12 +1211,12 @@ export default function ProfilePage() {
               {/* --- 4. Orders --- */}
               {activeTab === "orders" && (
                 <div className="space-y-8">
-                  <div className="flex items-center gap-3 mb-6 border-b border-gray-100 pb-3">
-                    <div className="w-10 h-10 bg-black rounded-lg flex items-center justify-center text-white">
+                  <div className="flex items-center gap-3 mb-6 border-b border-green-100 pb-4">
+                    <div className="w-10 h-10 bg-green-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-green-500/30">
                       <Package className="w-5 h-5" />
                     </div>
-                    <h2 className="text-2xl font-extrabold text-black uppercase tracking-wider">
-                      Order History
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                      Riwayat Pesanan
                     </h2>
                   </div>
 
@@ -1175,41 +1224,41 @@ export default function ProfilePage() {
                     {(orders || []).map((order) => (
                       <div
                         key={order.id}
-                        className="border border-gray-200 rounded-lg p-6 hover:border-black transition-colors"
+                        className="border border-green-100 rounded-2xl p-6 hover:border-green-300 hover:shadow-md transition-all bg-gray-50/50"
                       >
-                        <div className="flex flex-col md:flex-row md:items-start justify-between mb-4 border-b border-gray-100 pb-4">
+                        <div className="flex flex-col md:flex-row md:items-start justify-between mb-4 border-b border-green-100 pb-4">
                           <div>
-                            <h3 className="text-xl font-bold text-black mb-2 uppercase tracking-wider">
-                              Order #{order.orderNumber}
+                            <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">
+                              Pesanan #{order.orderNumber}
                             </h3>
-                            <div className="flex items-center gap-4 text-sm text-gray-600">
+                            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
                               <div className="flex items-center gap-2">
                                 <Calendar className="w-4 h-4" />
                                 <span>
                                   {new Date(order.date).toLocaleDateString(
-                                    "en-US"
+                                    "id-ID"
                                   )}
                                 </span>
                               </div>
                               {order.trackingNumber && (
                                 <div className="flex items-center gap-2">
                                   <Truck className="w-4 h-4" />
-                                  <span className="font-semibold text-black">
+                                  <span className="font-semibold text-gray-900">
                                     {order.trackingNumber}
                                   </span>
                                 </div>
                               )}
                             </div>
                           </div>
-                          <div className="text-right mt-3 md:mt-0">
+                          <div className="text-left md:text-right mt-3 md:mt-0">
                             <span
-                              className={`px-3 py-1 rounded-full text-xs font-semibold uppercase ${getStatusColor(
+                              className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(
                                 order.status
                               )}`}
                             >
                               {getStatusText(order.status)}
                             </span>
-                            <div className="font-extrabold text-2xl text-black mt-1">
+                            <div className="font-bold text-xl text-green-600 mt-1">
                               Rp {order.grand_total.toLocaleString("id-ID")}
                             </div>
                           </div>
@@ -1220,28 +1269,28 @@ export default function ProfilePage() {
                           {order.items.slice(0, 4).map((item, index) => (
                             <div
                               key={`${order.id}-${item.id}-${index}`}
-                              className="w-16 h-16 relative rounded-md overflow-hidden border border-gray-200"
+                              className="w-14 h-14 sm:w-16 sm:h-16 relative rounded-lg overflow-hidden border border-green-100"
                             >
                               <Image
                                 src={item.image}
                                 alt={item.name}
                                 fill
-                                className="object-cover grayscale"
+                                className="object-cover"
                               />
                             </div>
                           ))}
                           {order.items.length > 4 && (
                             <span className="text-sm text-gray-500">
-                              +{order.items.length - 4} items
+                              +{order.items.length - 4} item
                             </span>
                           )}
                         </div>
 
                         {/* Actions */}
-                        <div className="flex flex-wrap gap-3 pt-4 border-t border-gray-100">
+                        <div className="flex flex-wrap gap-3 pt-4 border-t border-green-100">
                           <button
                             onClick={() => openOrderDetailModal(order.id)}
-                            className="flex items-center gap-2 px-4 py-2 border border-black text-black rounded-lg hover:bg-black hover:text-white transition-colors font-medium text-sm uppercase"
+                            className="flex items-center gap-2 px-4 py-2 border-2 border-green-600 text-green-600 rounded-xl hover:bg-green-600 hover:text-white transition-colors font-semibold text-sm"
                           >
                             <Eye className="w-4 h-4" /> Detail
                           </button>
@@ -1249,20 +1298,23 @@ export default function ProfilePage() {
                             order.status === "processing") &&
                             order.payment_method === "manual" && (
                               <button
-                                onClick={openPaymentProofModal}
-                                className="flex items-center gap-2 px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors font-medium text-sm uppercase"
+                                onClick={() => {
+                                  setSelectedOrderId(order.id);
+                                  openPaymentProofModal();
+                                }}
+                                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-semibold text-sm shadow-lg shadow-green-500/30"
                               >
-                                <Upload className="w-4 h-4" /> Upload Proof
+                                <Upload className="w-4 h-4" /> Upload Bukti
                               </button>
                             )}
                           {order.status === "delivered" && (
-                            <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-black rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm uppercase">
+                            <button className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-xl hover:bg-green-100 transition-colors font-semibold text-sm border border-green-200">
                               <Star className="w-4 h-4" /> Review
                             </button>
                           )}
                           {order.status === "shipped" && (
-                            <button className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-black rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm uppercase">
-                              <Truck className="w-4 h-4" /> Track
+                            <button className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-xl hover:bg-green-100 transition-colors font-semibold text-sm border border-green-200">
+                              <Truck className="w-4 h-4" /> Lacak
                             </button>
                           )}
                         </div>
@@ -1271,21 +1323,21 @@ export default function ProfilePage() {
                   </div>
 
                   {orders.length === 0 && (
-                    <div className="text-center py-12">
-                      <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <Package className="w-12 h-12 text-gray-600" />
+                    <div className="text-center py-12 bg-green-50 rounded-2xl border border-green-100">
+                      <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Package className="w-12 h-12 text-green-600" />
                       </div>
-                      <h3 className="text-xl font-bold text-black mb-4 uppercase">
-                        No Orders Yet
+                      <h3 className="text-xl font-bold text-gray-900 mb-4">
+                        Belum Ada Pesanan
                       </h3>
-                      <p className="text-gray-700 mb-6">
-                        {`You haven't placed any orders. Start shopping now!`}
+                      <p className="text-gray-600 mb-6">
+                        Anda belum memiliki pesanan. Mulai belanja sekarang!
                       </p>
                       <button
                         onClick={() => router.push("/product")}
-                        className="bg-black text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-800 transition-colors uppercase tracking-wider"
+                        className="bg-green-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-green-700 transition-colors shadow-lg shadow-green-500/30"
                       >
-                        Start Shopping
+                        Mulai Belanja
                       </button>
                     </div>
                   )}

@@ -11,9 +11,11 @@ import {
   Package,
   Filter,
   X,
+  TrendingUp,
+  ArrowUpDown,
 } from "lucide-react";
 import Image from "next/image";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import clsx from "clsx";
 
 // Types
@@ -98,10 +100,34 @@ type SortKey =
   | "price-high"
   | "rating"
   | "newest"
-  | "diskon-terbesar";
+  | "diskon-terbesar"
+  | "best-seller";
 
 const IMG_FALLBACK =
   "https://via.placeholder.com/400x400/000000/FFFFFF?text=No+Image";
+
+/* =========================
+   Loading Skeleton Component
+========================= */
+const ProductSkeleton = () => (
+  <div className="bg-white rounded-lg overflow-hidden border border-gray-100 shadow-sm flex flex-col animate-pulse">
+    {/* Image Skeleton */}
+    <div className="relative w-full aspect-[3/4] bg-gray-200" />
+    
+    {/* Content Skeleton */}
+    <div className="p-4 flex-1 flex flex-col justify-between min-h-[120px]">
+      <div>
+        <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
+        <div className="h-4 bg-gray-200 rounded w-1/2 mb-4" />
+        <div className="h-3 bg-gray-200 rounded w-1/3 mb-2" />
+        <div className="h-3 bg-gray-200 rounded w-1/4" />
+      </div>
+      <div className="mt-4">
+        <div className="h-10 bg-gray-200 rounded-lg w-full" />
+      </div>
+    </div>
+  </div>
+);
 
 const Pagination = ({
   page,
@@ -112,11 +138,18 @@ const Pagination = ({
   totalPages: number;
   onChange: (p: number) => void;
 }) => (
-  <div className="text-center flex items-center justify-center gap-2">
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    className="text-center flex items-center justify-center gap-2"
+  >
     <button
-      onClick={() => onChange(Math.max(1, page - 1))}
+      onClick={() => {
+        onChange(Math.max(1, page - 1));
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }}
       disabled={page <= 1}
-      className="px-3 py-1 rounded bg-gray-200 text-black disabled:opacity-50"
+      className="px-3 py-1 rounded bg-gray-200 text-black disabled:opacity-50 hover:bg-gray-300 transition-colors"
     >
       Prev
     </button>
@@ -124,13 +157,16 @@ const Pagination = ({
       Page {page} of {totalPages}
     </span>
     <button
-      onClick={() => onChange(Math.min(totalPages, page + 1))}
+      onClick={() => {
+        onChange(Math.min(totalPages, page + 1));
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }}
       disabled={page >= totalPages}
-      className="px-3 py-1 rounded bg-gray-200 text-black disabled:opacity-50"
+      className="px-3 py-1 rounded bg-gray-200 text-black disabled:opacity-50 hover:bg-gray-300 transition-colors"
     >
       Next
     </button>
-  </div>
+  </motion.div>
 );
 
 const Button = ({
@@ -207,10 +243,12 @@ export default function ProductsPage() {
     category: string;
     priceRange: PriceRange;
     sort: SortKey;
+    concern: string;
   }>({
     category: "all",
     priceRange: "all",
     sort: "featured",
+    concern: "all",
   });
   const [inStockOnly, setInStockOnly] = useState(false);
   const [onlyDiscount, setOnlyDiscount] = useState(false);
@@ -336,6 +374,10 @@ export default function ProductsPage() {
     const term = query.trim().toLowerCase();
     let data = products;
 
+    // Create nameToSlug map once
+    const nameToSlug = new Map<string, string>();
+    categoryOptionList.forEach((o) => nameToSlug.set(o.label, o.slug));
+
     data = data.filter((p) => {
       const price = toNumber(p.price);
       const stock = toNumber(p.stock);
@@ -343,12 +385,14 @@ export default function ProductsPage() {
         !term ||
         p.name.toLowerCase().includes(term) ||
         p.category_name.toLowerCase().includes(term);
-      const nameToSlug = new Map<string, string>();
-      categoryOptionList.forEach((o) => nameToSlug.set(o.label, o.slug));
 
       const matchCategory =
         filter.category === "all" ||
         nameToSlug.get(p.category_name) === filter.category;
+
+      const matchConcern =
+        filter.concern === "all" ||
+        nameToSlug.get(p.category_name) === filter.concern;
 
       const matchPrice =
         filter.priceRange === "all" ||
@@ -370,6 +414,7 @@ export default function ProductsPage() {
       return (
         matchSearch &&
         matchCategory &&
+        matchConcern &&
         matchPrice &&
         matchStock &&
         matchDiscount
@@ -381,9 +426,11 @@ export default function ProductsPage() {
     products,
     query,
     filter.category,
+    filter.concern,
     filter.priceRange,
     inStockOnly,
     onlyDiscount,
+    categoryOptionList,
   ]);
 
   const sortedProducts = useMemo(() => {
@@ -402,6 +449,12 @@ export default function ProductsPage() {
       }
       case "newest":
         return arr.sort((a, b) => b.id - a.id);
+      case "best-seller":
+        return arr.sort((a, b) => {
+          const salesA = getNumberProp(a, "sales") ?? 0;
+          const salesB = getNumberProp(b, "sales") ?? 0;
+          return salesB - salesA;
+        });
       case "diskon-terbesar":
         return arr.sort((a, b) => {
           const wasA = getNumberProp(a, "markup_price") ?? a.price;
@@ -440,12 +493,47 @@ export default function ProductsPage() {
     filter.category,
     filter.priceRange,
     filter.sort,
+    filter.concern,
     inStockOnly,
     onlyDiscount,
   ]);
 
   const SimplifiedFilterBlocks = () => (
     <div className="space-y-4">
+      <h3 className="font-bold text-black uppercase tracking-wider border-b border-gray-200 pb-2">
+        Concern
+      </h3>
+      <div className="flex flex-col gap-2 mb-4">
+        <label className="flex items-center space-x-2 text-sm text-gray-700">
+          <input
+            type="radio"
+            name="concern"
+            value="all"
+            checked={filter.concern === "all"}
+            onChange={() => setFilter({ ...filter, concern: "all" })}
+            className="text-green-600 focus:ring-green-600"
+          />
+          <span>Semua Concern</span>
+        </label>
+
+        {categoryOptionList.map((opt) => (
+          <label
+            key={opt.slug}
+            className="flex items-center space-x-2 text-sm text-gray-700"
+          >
+            <input
+              type="radio"
+              name="concern"
+              value={opt.slug}
+              checked={filter.concern === opt.slug}
+              onChange={() => setFilter({ ...filter, concern: opt.slug })}
+              className="text-green-600 focus:ring-green-600"
+            />
+            <span>{opt.label}</span>
+          </label>
+        ))}
+      </div>
+
       <h3 className="font-bold text-black uppercase tracking-wider border-b border-gray-200 pb-2">
         Category
       </h3>
@@ -534,6 +622,14 @@ export default function ProductsPage() {
     </div>
   );
 
+  // Smooth scroll behavior
+  useEffect(() => {
+    document.documentElement.style.scrollBehavior = "smooth";
+    return () => {
+      document.documentElement.style.scrollBehavior = "auto";
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-white">
       {/* Alert Component */}
@@ -544,40 +640,118 @@ export default function ProductsPage() {
       </Suspense>
 
       {/* Top bar */}
-      <div className="border-b border-gray-200 bg-white shadow-sm md:pt-16">
+      <motion.div
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="border-b border-gray-200 bg-white shadow-sm md:pt-16 sticky top-0 z-40 bg-white/95 backdrop-blur-sm"
+      >
         <div className="container mx-auto max-w-7xl px-4 py-6">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h1 className="text-2xl font-extrabold tracking-tight text-black uppercase">
-                {dynamicTitle}
-              </h1>
-              <p className="text-sm text-gray-700">TIMELESS STYLE</p>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h1 className="text-2xl font-extrabold tracking-tight text-black uppercase">
+                  {dynamicTitle}
+                </h1>
+                <p className="text-sm text-gray-700">Kesehatan Alami untuk Gaya Hidup Modern</p>
+              </div>
             </div>
 
-            <div className="flex w-full items-center gap-2 md:w-auto">
-              <div className="group flex w-full items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 shadow-sm ring-1 ring-transparent transition focus-within:ring-black/40 md:w-80">
+            {/* Filter Bar */}
+            <div className="flex flex-col gap-3">
+              {/* Search Bar */}
+              <div className="group flex w-full items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 shadow-sm ring-1 ring-transparent transition focus-within:ring-green-500/40">
                 <Search className="h-4 w-4 text-gray-400" />
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search for items, categories, or tags…"
+                  placeholder="Cari produk herbal, kategori, atau tag…"
                   className="w-full bg-transparent text-sm outline-none placeholder:text-gray-400 text-black"
                   aria-label="Cari"
                 />
               </div>
-              <button
-                onClick={() => setDrawerOpen(true)}
-                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-black hover:bg-gray-50 md:hidden transition-colors"
-              >
-                <Filter className="h-4 w-4" /> Filter
-              </button>
+
+              {/* Filter Buttons Row */}
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Concern Filter */}
+                <select
+                  value={filter.concern}
+                  onChange={(e) => {
+                    setFilter({ ...filter, concern: e.target.value });
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm text-black font-medium hover:border-green-500 transition-colors"
+                >
+                  <option value="all">Semua Concern</option>
+                  {categoryOptionList.map((cat) => (
+                    <option key={cat.slug} value={cat.slug}>
+                      {cat.label}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Quick Sort Buttons */}
+                <button
+                  onClick={() => {
+                    setFilter({ ...filter, sort: "price-low" });
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  className={`px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                    filter.sort === "price-low"
+                      ? "bg-green-600 text-white border-green-600"
+                      : "bg-white text-black border-gray-300 hover:border-green-500"
+                  }`}
+                >
+                  Harga Termurah
+                </button>
+                <button
+                  onClick={() => {
+                    setFilter({ ...filter, sort: "price-high" });
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  className={`px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                    filter.sort === "price-high"
+                      ? "bg-green-600 text-white border-green-600"
+                      : "bg-white text-black border-gray-300 hover:border-green-500"
+                  }`}
+                >
+                  Harga Tertinggi
+                </button>
+                <button
+                  onClick={() => {
+                    setFilter({ ...filter, sort: "best-seller" });
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                  className={`px-3 py-2 rounded-lg border text-sm font-medium transition-colors flex items-center gap-1 ${
+                    filter.sort === "best-seller"
+                      ? "bg-green-600 text-white border-green-600"
+                      : "bg-white text-black border-gray-300 hover:border-green-500"
+                  }`}
+                >
+                  <TrendingUp className="h-4 w-4" />
+                  Paling Laris
+                </button>
+
+                {/* Mobile Filter Button */}
+                <button
+                  onClick={() => setDrawerOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-black hover:bg-gray-50 md:hidden transition-colors"
+                >
+                  <Filter className="h-4 w-4" /> Filter
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Main Content */}
-      <div className="container mx-auto max-w-7xl px-4">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="container mx-auto max-w-7xl px-4"
+      >
         <div className="grid grid-cols-1 gap-6 py-8 md:grid-cols-[260px_1fr]">
           <aside className="hidden rounded-lg border border-gray-200 bg-white p-4 shadow-sm md:block">
             <SimplifiedFilterBlocks />
@@ -607,24 +781,33 @@ export default function ProductsPage() {
                 <select
                   className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-black font-medium"
                   value={filter.sort}
-                  onChange={(e) =>
-                    setFilter({ ...filter, sort: e.target.value as SortKey })
-                  }
+                  onChange={(e) => {
+                    setFilter({ ...filter, sort: e.target.value as SortKey });
+                    // Smooth scroll to top when sorting changes
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
                 >
                   <option value="featured">Featured</option>
-                  <option value="price-low">Price: Low to High</option>
-                  <option value="price-high">Price: High to Low</option>
-                  <option value="rating">Top Rated</option>
-                  <option value="newest">Newest</option>
+                  <option value="price-low">Harga: Termurah</option>
+                  <option value="price-high">Harga: Tertinggi</option>
+                  <option value="best-seller">Paling Laris</option>
+                  <option value="rating">Rating Tertinggi</option>
+                  <option value="newest">Terbaru</option>
                 </select>
               </div>
             </div>
 
             {/* Products Grid */}
             {isLoading ? (
-              <div className="w-full flex justify-center items-center min-h-64">
-                <DotdLoader />
-              </div>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-6"
+              >
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <ProductSkeleton key={i} />
+                ))}
+              </motion.div>
             ) : pageItems.length === 0 ? (
               <div className="text-center py-20 bg-gray-50 rounded-xl border border-gray-200">
                 <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -638,17 +821,30 @@ export default function ProductsPage() {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-6">
-                {pageItems.map((product) => {
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-6"
+              >
+                {pageItems.map((product, index) => {
                   const img = getImageUrl(product);
                   const ratingNum = getNumberProp(product, "rating") ?? 0;
                   const totalReviews =
                     getNumberProp(product, "total_reviews") ?? 0;
 
                   return (
-                    <div
+                    <motion.div
                       key={product.id}
-                      className="bg-white rounded-lg transition-all duration-300 overflow-hidden group relative border border-gray-100 shadow-sm flex flex-col"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{
+                        duration: 0.4,
+                        delay: index * 0.05,
+                        ease: "easeOut",
+                      }}
+                      whileHover={{ y: -4 }}
+                      className="bg-white rounded-lg transition-all duration-300 overflow-hidden group relative border border-gray-100 shadow-sm flex flex-col hover:shadow-lg"
                     >
                       {/* IMAGE */}
                       <div className="relative w-full aspect-[3/4] overflow-hidden">
@@ -752,10 +948,10 @@ export default function ProductsPage() {
                           </Button>
                         </div>
                       </div>
-                    </div>
+                    </motion.div>
                   );
                 })}
-              </div>
+              </motion.div>
             )}
 
             {/* Pagination */}
@@ -770,7 +966,7 @@ export default function ProductsPage() {
             )}
           </section>
         </div>
-      </div>
+      </motion.div>
 
       {/* Drawer Filter (mobile) */}
       {drawerOpen && (

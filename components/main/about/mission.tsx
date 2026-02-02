@@ -15,7 +15,7 @@ export default function Mission() {
             Visi & <span className="text-[#E53935]">Misi</span>
           </h2>
           <p className="text-lg text-[#6B6B6B] leading-relaxed mb-6">
-            BLACKBOX.INC Shop hadir untuk menghadirkan produk terbaik dengan
+            HerbalCare Shop hadir untuk menghadirkan produk terbaik dengan
             mengutamakan kualitas, kepuasan pelanggan, dan inovasi.
           </p>
         </motion.div>

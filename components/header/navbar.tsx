@@ -85,13 +85,13 @@ export default function Navbar() {
               ) : (
                 <div className="flex items-center gap-3">
                   <Link
-                    href="/auth/register"
+                    href="/login"
                     className="text-sm font-medium text-gray-700 hover:text-black transition-colors"
                   >
                     Sign Up
                   </Link>
                   <Link
-                    href="/auth/login"
+                    href="/login"
                     className="text-sm font-medium text-white bg-black px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors"
                   >
                     Sign In
@@ -179,7 +179,7 @@ export default function Navbar() {
                   Sign Up
                 </Link>
                 <Link
-                  href="/auth/login"
+                  href="/login"
                   onClick={handleLinkClick}
                   className="w-full text-center text-white bg-black hover:bg-gray-800 p-3 rounded-lg transition-colors uppercase tracking-wider"
                 >

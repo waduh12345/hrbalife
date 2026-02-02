@@ -8,7 +8,7 @@ type TokenWithRoles = JWT & { roles?: RoleShape[] };
 
 function redirectToLogin(req: NextRequest) {
   const url = req.nextUrl.clone();
-  url.pathname = "/auth/login";
+  url.pathname = "/login";
   url.searchParams.set(
     "callbackUrl",
     req.nextUrl.pathname + req.nextUrl.search

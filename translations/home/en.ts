@@ -1,7 +1,7 @@
 const translations = {
   "hero-title-1": "Elevate Your",
   "hero-title-2": "Style — Modern & Elegant",
-  "hero-title-3": "with BLACKBOX.INC Shop",
+  "hero-title-3": "with HerbalCare Shop",
   "hero-subtitle":
     "Curated fashion for everyday looks to special occasions—sharp cuts, premium fabrics, and standout details.",
 
@@ -23,7 +23,7 @@ const translations = {
   "cta-title-1": "Upgrade",
   "cta-title-2": "Your Wardrobe",
   "cta-subtitle":
-    "Feel the right fit, real confidence, and signature style with BLACKBOX.INC. Discover your favorite staples and statement pieces.",
+    "Feel the right fit, real confidence, and signature style with HerbalCare. Discover your favorite staples and statement pieces.",
   "cta-btn": "Shop Now",
 
   "testimony-title": "What They Say",

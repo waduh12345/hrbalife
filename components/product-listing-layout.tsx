@@ -59,7 +59,7 @@ const DEF_SIZES = ["S", "M", "L", "XL", "XXL"];
 const PAGE_SIZE_DEFAULT = 10;
 const LOW_STOCK_AT_DEFAULT = 5;
 const IMG_FALLBACK =
-  "https://via.placeholder.com/400x400/000000/FFFFFF?text=BLACKBOX.INC";
+  "https://via.placeholder.com/400x400/000000/FFFFFF?text=HerbalCare";
 
 const CURRENCY = (n: number) =>
   new Intl.NumberFormat("id-ID", {

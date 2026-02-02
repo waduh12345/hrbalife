@@ -46,7 +46,14 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+
 :root {
+  /* HerbalCare Brand Colors */
+  --color-primary: #2D5A27;
+  --color-accent: #88B04B;
+  --color-background: #F9FBFA;
+  --color-text: #1f2937;
+  
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -135,4 +142,8 @@
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+.bg-accent {
+  background-color: var(--color-accent);
 }

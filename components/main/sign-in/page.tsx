@@ -16,14 +16,14 @@ import {
   ArrowLeft,
   AlertCircle,
   CheckCircle,
-  Award, // Ikon baru untuk fashion
-  Ruler, // Ikon baru untuk fashion
+  Leaf,
+  ShieldCheck,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-// import { useRegisterMutation } from "@/services/auth.service"; // Dibiarkan sebagai mock
-import { Button } from "@/components/ui/button"; // Asumsi Button sudah B&W
+import { Button } from "@/components/ui/button";
 import clsx from "clsx";
+import { motion, AnimatePresence } from "framer-motion";
 
 // --- Mocking Unused Hooks for UI isolation ---
 type RegisterSuccess = { message?: string };
@@ -76,6 +76,17 @@ interface OtpFormData {
   confirmPassword: string;
 }
 
+// Animations
+const fadeUp = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+};
+
+const scaleIn = {
+  hidden: { opacity: 0, scale: 0.95 },
+  show: { opacity: 1, scale: 1, transition: { duration: 0.3 } },
+};
+
 export default function LoginPage() {
   const router = useRouter();
 
@@ -122,7 +133,7 @@ export default function LoginPage() {
 
   const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
 
-  // ===== Handlers (Logic remains the same) =====
+  // ===== Handlers =====
   const handleLoginSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrors([]);
@@ -168,6 +179,8 @@ export default function LoginPage() {
     if (!registerData.email) newErrors.push("Email wajib diisi");
     if (!registerData.phone) newErrors.push("Nomor telepon wajib diisi");
     if (!registerData.password) newErrors.push("Password wajib diisi");
+    if (registerData.password.length < 8)
+      newErrors.push("Password minimal 8 karakter");
     if (registerData.password !== registerData.confirmPassword)
       newErrors.push("Konfirmasi password tidak sesuai");
     if (!registerData.agreeToTerms)
@@ -187,7 +200,7 @@ export default function LoginPage() {
     };
 
     try {
-      await registerMutation(payload).unwrap(); // ✔ tanpa any
+      await registerMutation(payload).unwrap();
       setSuccessMsg("Registrasi berhasil! Silakan masuk.");
       setLoginData((p) => ({ ...p, email: registerData.email }));
       setIsLogin(true);
@@ -210,14 +223,12 @@ export default function LoginPage() {
 
     setIsSendingResetLink(true);
     try {
-      // API call placeholder
-      const response = { ok: true, json: () => ({}) }; // Mock success
-
+      const response = { ok: true, json: () => ({}) };
       const data = await response.json();
 
       if (response.ok) {
         setSuccessMsg(
-          "Jika email terdaftar, kode reset password akan dikirimkan. Silakan periksa email Anda dan masukkan kode di bawah."
+          "Kode reset password telah dikirim ke email Anda. Silakan periksa inbox dan masukkan kode di bawah."
         );
         setOtpFormData((prev) => ({
           ...prev,
@@ -228,7 +239,7 @@ export default function LoginPage() {
       } else {
         const message =
           (data as { message?: string }).message ||
-          "Gagal mengirim tautan reset password. Silakan coba lagi.";
+          "Gagal mengirim kode reset password. Silakan coba lagi.";
         setErrors([message]);
       }
     } catch (err) {
@@ -259,9 +270,7 @@ export default function LoginPage() {
 
     setIsVerifyingOtp(true);
     try {
-      // API call placeholder
-      const response = { ok: true, json: () => ({}) }; // Mock success
-
+      const response = { ok: true, json: () => ({}) };
       const data = await response.json();
 
       if (response.ok) {
@@ -273,7 +282,8 @@ export default function LoginPage() {
         setLoginData((prev) => ({ ...prev, email }));
       } else {
         const message =
-          (data as { message?: string }).message || "Gagal mengubah password. Pastikan kode OTP benar.";
+          (data as { message?: string }).message ||
+          "Gagal mengubah password. Pastikan kode OTP benar.";
         setErrors([message]);
       }
     } catch (err) {
@@ -283,56 +293,67 @@ export default function LoginPage() {
     }
   };
 
-  // ===== UI (B&W Styling) =====
-  const primaryColor = "text-black";
-  const accentBg = "bg-black";
-  const accentText = "text-white";
-  const errorColor = "text-red-600";
-  const successColor = "text-emerald-600";
-
   // --- Forgot Password Form ---
   if (showForgotPassword) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-        <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md border border-gray-200">
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-50/30 flex items-center justify-center p-4 sm:p-6">
+        <motion.div
+          initial="hidden"
+          animate="show"
+          variants={scaleIn}
+          className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 w-full max-w-md border border-green-100"
+        >
           <div className="text-center mb-8">
-            <div className={`w-16 h-16 ${accentBg} rounded-lg flex items-center justify-center mx-auto mb-4`}>
+            <div className="w-16 h-16 bg-gradient-to-br from-green-600 to-green-700 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
               <Lock className="w-8 h-8 text-white" />
             </div>
-            <h2 className="text-2xl font-extrabold text-black mb-2 uppercase">
-              Forgot Password?
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+              Lupa Password?
             </h2>
-            <p className="text-gray-700">
-              {`Enter your email and we'll guide you through the process.`}
+            <p className="text-gray-600 text-sm sm:text-base">
+              Masukkan email Anda dan kami akan mengirimkan kode verifikasi
             </p>
           </div>
 
-          {errors.length > 0 && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="font-semibold text-red-800 mb-1">Error:</h4>
-                  <ul className="text-sm text-red-700 space-y-1">
-                    {errors.map((error) => (
-                      <li key={error}>• {error}</li>
-                    ))}
-                  </ul>
+          <AnimatePresence mode="wait">
+            {errors.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl"
+              >
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold text-red-800 mb-1">Terjadi Kesalahan:</h4>
+                    <ul className="text-sm text-red-700 space-y-1">
+                      {errors.map((error, idx) => (
+                        <li key={idx}>• {error}</li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
-              </div>
-            </div>
-          )}
+              </motion.div>
+            )}
 
-          {successMsg && (
-            <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800">
-              {successMsg}
-            </div>
-          )}
+            {successMsg && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl flex items-start gap-3"
+              >
+                <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                <p className="text-green-800 text-sm">{successMsg}</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <form onSubmit={handleForgotPassword} className="space-y-6">
             <div>
-              <label className="block text-sm font-bold text-black mb-2 uppercase">
-                Email Address
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Alamat Email
               </label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -342,15 +363,14 @@ export default function LoginPage() {
                   onChange={(e) =>
                     setForgotPasswordData({ email: e.target.value })
                   }
-                  // Input B&W Styling
-                  className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-black text-black"
-                  placeholder="Enter your email"
+                  className="w-full pl-12 pr-4 py-3.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900 transition-all"
+                  placeholder="nama@email.com"
                   required
                 />
               </div>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <button
                 type="button"
                 onClick={() => {
@@ -358,96 +378,110 @@ export default function LoginPage() {
                   setErrors([]);
                   setSuccessMsg(null);
                 }}
-                // Button Secondary B&W
-                className="flex-1 py-4 border border-gray-300 text-black rounded-lg font-semibold hover:bg-gray-100 transition-colors uppercase tracking-wider"
+                className="flex-1 py-3.5 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all"
               >
-                Cancel
+                Batal
               </button>
               <button
                 type="submit"
                 disabled={isSendingResetLink}
-                // Button Primary B&W
-                className={clsx(
-                  "flex-1 text-white py-4 rounded-lg font-bold hover:bg-gray-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 uppercase tracking-wider",
-                  accentBg
-                )}
+                className="flex-1 bg-gradient-to-r from-green-600 to-green-700 text-white py-3.5 rounded-xl font-semibold hover:from-green-700 hover:to-green-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-green-500/30"
               >
                 {isSendingResetLink ? (
                   <>
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Sending...
+                    Mengirim...
                   </>
                 ) : (
-                  "Send Link"
+                  <>
+                    Kirim Kode
+                    <ArrowRight className="w-4 h-4" />
+                  </>
                 )}
               </button>
             </div>
           </form>
-        </div>
+        </motion.div>
       </div>
     );
   } else if (showOtpForm) {
     // --- OTP Form ---
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-        <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md border border-gray-200">
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-50/30 flex items-center justify-center p-4 sm:p-6">
+        <motion.div
+          initial="hidden"
+          animate="show"
+          variants={scaleIn}
+          className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 w-full max-w-md border border-green-100"
+        >
           <div className="text-center mb-8">
-            <div className={`w-16 h-16 ${accentBg} rounded-lg flex items-center justify-center mx-auto mb-4`}>
-              <Lock className="w-8 h-8 text-white" />
+            <div className="w-16 h-16 bg-gradient-to-br from-green-600 to-green-700 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+              <ShieldCheck className="w-8 h-8 text-white" />
             </div>
-            <h2 className="text-2xl font-extrabold text-black mb-2 uppercase">
-              Verify & Reset Password
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+              Verifikasi & Reset Password
             </h2>
-            <p className="text-gray-700">
-              Enter the OTP sent to your email and set a new password.
+            <p className="text-gray-600 text-sm sm:text-base">
+              Masukkan kode OTP dan password baru Anda
             </p>
           </div>
 
-          {errors.length > 0 && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="font-semibold text-red-800 mb-1">Error:</h4>
-                  <ul className="text-sm text-red-700 space-y-1">
-                    {errors.map((error) => (
-                      <li key={error}>• {error}</li>
-                    ))}
-                  </ul>
+          <AnimatePresence mode="wait">
+            {errors.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl"
+              >
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold text-red-800 mb-1">Terjadi Kesalahan:</h4>
+                    <ul className="text-sm text-red-700 space-y-1">
+                      {errors.map((error, idx) => (
+                        <li key={idx}>• {error}</li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
-              </div>
-            </div>
-          )}
+              </motion.div>
+            )}
 
-          {successMsg && (
-            <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800">
-              {successMsg}
-            </div>
-          )}
+            {successMsg && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl flex items-start gap-3"
+              >
+                <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                <p className="text-green-800 text-sm">{successMsg}</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <form onSubmit={handleOtpSubmit} className="space-y-6">
             <div>
-              <label className="block text-sm font-bold text-black mb-2 uppercase">
-                OTP Code
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Kode OTP
               </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={otpFormData.otp}
-                  onChange={(e) =>
-                    setOtpFormData((prev) => ({ ...prev, otp: e.target.value }))
-                  }
-                  // Input B&W Styling
-                  className="w-full px-4 py-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-black text-center font-bold text-lg tracking-[0.25em] text-black"
-                  placeholder="------"
-                  required
-                />
-              </div>
+              <input
+                type="text"
+                value={otpFormData.otp}
+                onChange={(e) =>
+                  setOtpFormData((prev) => ({ ...prev, otp: e.target.value }))
+                }
+                className="w-full px-4 py-3.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-center font-bold text-xl tracking-[0.5em] text-gray-900"
+                placeholder="000000"
+                maxLength={6}
+                required
+              />
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-black mb-2 uppercase">
-                New Password
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Password Baru
               </label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -460,15 +494,14 @@ export default function LoginPage() {
                       password: e.target.value,
                     }))
                   }
-                  // Input B&W Styling
-                  className="w-full pl-12 pr-12 py-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-black text-black"
-                  placeholder="Minimum 8 characters"
+                  className="w-full pl-12 pr-12 py-3.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
+                  placeholder="Minimal 8 karakter"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-green-600 transition-colors"
                 >
                   {showPassword ? (
                     <EyeOff className="w-5 h-5" />
@@ -480,8 +513,8 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-black mb-2 uppercase">
-                Confirm New Password
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Konfirmasi Password
               </label>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -494,15 +527,14 @@ export default function LoginPage() {
                       confirmPassword: e.target.value,
                     }))
                   }
-                  // Input B&W Styling
-                  className="w-full pl-12 pr-12 py-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-black text-black"
-                  placeholder="Repeat new password"
+                  className="w-full pl-12 pr-12 py-3.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900"
+                  placeholder="Ulangi password baru"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword((v) => !v)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-green-600 transition-colors"
                 >
                   {showConfirmPassword ? (
                     <EyeOff className="w-5 h-5" />
@@ -513,7 +545,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <button
                 type="button"
                 onClick={() => {
@@ -522,52 +554,54 @@ export default function LoginPage() {
                   setErrors([]);
                   setSuccessMsg(null);
                 }}
-                // Button Secondary B&W
-                className="flex-1 py-4 border border-gray-300 text-black rounded-lg font-semibold hover:bg-gray-100 transition-colors uppercase tracking-wider"
+                className="flex-1 py-3.5 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-all"
               >
-                Back
+                Kembali
               </button>
               <button
                 type="submit"
                 disabled={isVerifyingOtp}
-                // Button Primary B&W
-                className={clsx(
-                  "flex-1 text-white py-4 rounded-lg font-bold hover:bg-gray-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 uppercase tracking-wider",
-                  accentBg
-                )}
+                className="flex-1 bg-gradient-to-r from-green-600 to-green-700 text-white py-3.5 rounded-xl font-semibold hover:from-green-700 hover:to-green-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-green-500/30"
               >
                 {isVerifyingOtp ? (
                   <>
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Processing...
+                    Memproses...
                   </>
                 ) : (
-                  "Reset Password"
+                  <>
+                    Reset Password
+                    <CheckCircle className="w-4 h-4" />
+                  </>
                 )}
               </button>
             </div>
           </form>
-        </div>
+        </motion.div>
       </div>
     );
   }
 
   // --- Login/Register Main UI ---
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-      {/* Subtle B&W Background Dots/Bubbles */}
-      <div className="absolute top-20 left-10 w-20 h-20 bg-black/10 rounded-full opacity-60 animate-pulse" />
-      <div className="absolute bottom-32 right-16 w-16 h-16 bg-gray-600/10 rounded-full opacity-60 animate-pulse delay-1000" />
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-50/30 flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
+      {/* Decorative Elements */}
+      <div className="absolute top-20 right-10 w-72 h-72 bg-green-200 rounded-full blur-3xl opacity-20 animate-pulse"></div>
+      <div className="absolute bottom-20 left-10 w-96 h-96 bg-green-300 rounded-full blur-3xl opacity-10"></div>
 
-      <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 bg-white rounded-xl shadow-2xl overflow-hidden border border-gray-200">
-        {/* Left Sidebar (Inverted B&W) */}
-        <div
-          className={`${accentBg} p-8 lg:p-12 flex flex-col justify-center text-white relative overflow-hidden`}
-        >
-          {/* Subtle Accent Shapes B&W */}
+      <motion.div
+        initial="hidden"
+        animate="show"
+        variants={scaleIn}
+        className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 bg-white rounded-2xl shadow-2xl overflow-hidden border border-green-100 relative z-10"
+      >
+        {/* Left Sidebar - HerbalCare Branding */}
+        <div className="bg-gradient-to-br from-green-600 via-green-700 to-green-800 p-8 lg:p-12 flex flex-col justify-center text-white relative overflow-hidden">
+          {/* Decorative Shapes */}
           <div className="absolute inset-0 opacity-10">
-            <div className="absolute top-10 right-10 w-32 h-32 bg-white/10 rounded-full" />
-            <div className="absolute bottom-20 left-10 w-24 h-24 bg-white/10 rounded-full" />
+            <div className="absolute top-10 right-10 w-40 h-40 bg-white rounded-full" />
+            <div className="absolute bottom-20 left-10 w-32 h-32 bg-white rounded-full" />
+            <div className="absolute top-1/2 left-1/4 w-24 h-24 bg-white rounded-full" />
           </div>
 
           <div className="relative z-10">
@@ -575,121 +609,163 @@ export default function LoginPage() {
               variant="outline"
               size="sm"
               onClick={() => router.push("/")}
-              // Button B&W Inverted
-              className="text-black cursor-pointer shadow-lg border-white bg-white hover:bg-gray-100 transition-colors mb-6"
+              className="text-green-700 cursor-pointer shadow-lg border-white bg-white hover:bg-green-50 transition-all mb-6 font-semibold"
             >
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              Back to Store
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Kembali ke Beranda
             </Button>
 
             <div className="flex items-center gap-3 mb-8">
-              <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center">
-                <span className="text-black font-extrabold text-xl tracking-wider">
-                  B
-                </span>
+              <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-lg">
+                <Leaf className="w-8 h-8 text-green-600" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-white uppercase">
-                  BLACKBOX.INC
+                <h1 className="text-2xl sm:text-3xl font-bold text-white">
+                  HerbalCare
                 </h1>
-                <p className="text-white/80 text-sm">Exclusive Fashion</p>
+                <p className="text-green-100 text-sm">Kesehatan Alami</p>
               </div>
             </div>
 
             <div className="mb-8">
-              <h2 className="text-3xl lg:text-4xl font-bold mb-4 leading-tight text-white uppercase">
+              <h2 className="text-3xl lg:text-4xl font-bold mb-4 leading-tight text-white">
                 {isLogin
-                  ? "Welcome Back, Define Your Style."
-                  : "Join The Exclusive Circle."}
+                  ? "Selamat Datang Kembali!"
+                  : "Bergabung dengan Kami"}
               </h2>
-              <p className="text-white/80 text-lg">
+              <p className="text-green-100 text-base lg:text-lg leading-relaxed">
                 {isLogin
-                  ? "Sign in to access your collection, track orders, and manage your profile."
-                  : "Register now to enjoy premium designs, early access, and unparalleled quality."}
+                  ? "Masuk untuk mengakses akun Anda, melacak pesanan, dan mengelola profil dengan mudah."
+                  : "Daftar sekarang untuk menikmati produk herbal berkualitas, akses eksklusif, dan manfaat kesehatan alami."}
               </p>
             </div>
 
-            {/* Feature List (Fashion Focus) */}
+            {/* Feature List */}
             <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <Award className="w-6 h-6 text-white" />
-                <span className="text-white/80">Uncompromising Quality</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Ruler className="w-6 h-6 text-white" />
-                <span className="text-white/80">Perfect Fit Guarantee</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Heart className="w-6 h-6 text-white" />
-                <span className="text-white/80">Timeless, Minimal Design</span>
-              </div>
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 }}
+                className="flex items-center gap-3"
+              >
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                  <Leaf className="w-5 h-5 text-white" />
+                </div>
+                <span className="text-green-50 font-medium">100% Bahan Alami</span>
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3 }}
+                className="flex items-center gap-3"
+              >
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                  <ShieldCheck className="w-5 h-5 text-white" />
+                </div>
+                <span className="text-green-50 font-medium">Tersertifikasi BPOM & Halal</span>
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.4 }}
+                className="flex items-center gap-3"
+              >
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                  <Heart className="w-5 h-5 text-white" />
+                </div>
+                <span className="text-green-50 font-medium">Dipercaya 10,000+ Pelanggan</span>
+              </motion.div>
             </div>
 
             <div className="grid grid-cols-3 gap-4 mt-8 pt-8 border-t border-white/20">
               <div className="text-center">
                 <div className="text-2xl font-bold text-white">4.9</div>
-                <div className="text-white/50 text-sm">Rating</div>
+                <div className="text-green-100 text-xs sm:text-sm">Rating</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-white">10K+</div>
-                <div className="text-white/50 text-sm">Happy Clients</div>
+                <div className="text-green-100 text-xs sm:text-sm">Pelanggan</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-white">Exclusive</div>
-                <div className="text-white/50 text-sm">New Drops Weekly</div>
+                <div className="text-2xl font-bold text-white">100%</div>
+                <div className="text-green-100 text-xs sm:text-sm">Alami</div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Right Form Area (Standard B&W) */}
-        <div className="p-8 lg:p-12">
+        {/* Right Form Area */}
+        <div className="p-6 sm:p-8 lg:p-12">
           <div className="max-w-md mx-auto">
             <div className="text-center mb-8">
-              <div className="inline-flex items-center gap-2 bg-black/10 px-4 py-2 rounded-full mb-4">
-                <Sparkles className="w-4 h-4 text-black" />
-                <span className="text-sm font-medium text-black uppercase">
-                  {isLogin ? "Client Sign In" : "New Client"}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="inline-flex items-center gap-2 bg-green-100 text-green-700 px-4 py-2 rounded-full mb-4"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span className="text-sm font-semibold">
+                  {isLogin ? "Masuk Akun" : "Daftar Baru"}
                 </span>
-              </div>
-              <h3 className="text-2xl font-bold text-black mb-2 uppercase">
-                {isLogin ? "Access Your Account" : "Create New Account"}
+              </motion.div>
+              <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+                {isLogin ? "Masuk ke Akun Anda" : "Buat Akun Baru"}
               </h3>
-              <p className="text-gray-700">
+              <p className="text-gray-600 text-sm sm:text-base">
                 {isLogin
-                  ? "Enter your credentials to continue"
-                  : "Fill in the details below to join BLACKBOX.INC"}
+                  ? "Masukkan kredensial Anda untuk melanjutkan"
+                  : "Isi detail di bawah untuk bergabung dengan HerbalCare"}
               </p>
             </div>
 
-            {errors.length > 0 && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="font-semibold text-red-800 mb-1">Error:</h4>
-                    <ul className="text-sm text-red-700 space-y-1">
-                      {errors.map((error) => (
-                        <li key={error}>• {error}</li>
-                      ))}
-                    </ul>
+            <AnimatePresence mode="wait">
+              {errors.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl"
+                >
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-semibold text-red-800 mb-1">Terjadi Kesalahan:</h4>
+                      <ul className="text-sm text-red-700 space-y-1">
+                        {errors.map((error, idx) => (
+                          <li key={idx}>• {error}</li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
-                </div>
-              </div>
-            )}
+                </motion.div>
+              )}
 
-            {successMsg && (
-              <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800">
-                {successMsg}
-              </div>
-            )}
+              {successMsg && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl flex items-start gap-3"
+                >
+                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-green-800 text-sm">{successMsg}</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Login Form */}
             {isLogin ? (
-              <form onSubmit={handleLoginSubmit} className="space-y-6">
+              <motion.form
+                key="login"
+                initial="hidden"
+                animate="show"
+                variants={fadeUp}
+                onSubmit={handleLoginSubmit}
+                className="space-y-5"
+              >
                 <div>
-                  <label className="block text-sm font-bold text-black mb-2 uppercase">
-                    Email Address
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Alamat Email
                   </label>
                   <div className="relative">
                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -702,15 +778,14 @@ export default function LoginPage() {
                           email: e.target.value,
                         }))
                       }
-                      // Input B&W Styling
-                      className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-black text-black"
-                      placeholder="name@email.com"
+                      className="w-full pl-12 pr-4 py-3.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900 transition-all"
+                      placeholder="nama@email.com"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-black mb-2 uppercase">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Password
                   </label>
                   <div className="relative">
@@ -724,14 +799,13 @@ export default function LoginPage() {
                           password: e.target.value,
                         }))
                       }
-                      // Input B&W Styling
-                      className="w-full pl-12 pr-12 py-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-black text-black"
+                      className="w-full pl-12 pr-12 py-3.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900 transition-all"
                       placeholder="••••••••"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword((v) => !v)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-green-600 transition-colors"
                     >
                       {showPassword ? (
                         <EyeOff className="w-5 h-5" />
@@ -742,14 +816,14 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <label className="flex items-center">
+                <div className="flex items-center justify-between text-sm">
+                  <label className="flex items-center cursor-pointer">
                     <input
                       type="checkbox"
-                      className="w-4 h-4 text-black border-gray-300 rounded focus:ring-black"
+                      className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
                     />
-                    <span className="ml-2 text-sm text-gray-700">
-                      Remember me
+                    <span className="ml-2 text-gray-700">
+                      Ingat saya
                     </span>
                   </label>
                   <button
@@ -760,40 +834,43 @@ export default function LoginPage() {
                       setSuccessMsg(null);
                       setForgotPasswordData({ email: loginData.email });
                     }}
-                    className="text-black font-semibold hover:underline"
+                    className="text-green-600 font-semibold hover:text-green-700 hover:underline"
                   >
-                    Forgot password?
+                    Lupa password?
                   </button>
                 </div>
 
                 <button
                   type="submit"
                   disabled={isLoggingIn}
-                  // Button Primary B&W
-                  className={clsx(
-                    "w-full text-white py-4 rounded-lg font-bold hover:bg-gray-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 uppercase tracking-wider",
-                    accentBg
-                  )}
+                  className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-3.5 rounded-xl font-semibold hover:from-green-700 hover:to-green-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-green-500/30"
                 >
                   {isLoggingIn ? (
                     <>
                       <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Processing...
+                      Memproses...
                     </>
                   ) : (
                     <>
-                      Sign In
+                      Masuk
                       <ArrowRight className="w-5 h-5" />
                     </>
                   )}
                 </button>
-              </form>
+              </motion.form>
             ) : (
               // Register Form
-              <form onSubmit={handleRegisterSubmit} className="space-y-6">
+              <motion.form
+                key="register"
+                initial="hidden"
+                animate="show"
+                variants={fadeUp}
+                onSubmit={handleRegisterSubmit}
+                className="space-y-5"
+              >
                 <div>
-                  <label className="block text-sm font-bold text-black mb-2 uppercase">
-                    Full Name
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Nama Lengkap
                   </label>
                   <div className="relative">
                     <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -806,16 +883,15 @@ export default function LoginPage() {
                           fullName: e.target.value,
                         }))
                       }
-                      // Input B&W Styling
-                      className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-black text-black"
-                      placeholder="Enter full name"
+                      className="w-full pl-12 pr-4 py-3.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900 transition-all"
+                      placeholder="Masukkan nama lengkap"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-black mb-2 uppercase">
-                    Email Address
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Alamat Email
                   </label>
                   <div className="relative">
                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -828,16 +904,15 @@ export default function LoginPage() {
                           email: e.target.value,
                         }))
                       }
-                      // Input B&W Styling
-                      className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-black text-black"
-                      placeholder="name@email.com"
+                      className="w-full pl-12 pr-4 py-3.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900 transition-all"
+                      placeholder="nama@email.com"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-black mb-2 uppercase">
-                    Phone Number
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Nomor Telepon
                   </label>
                   <div className="relative">
                     <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -850,15 +925,14 @@ export default function LoginPage() {
                           phone: e.target.value,
                         }))
                       }
-                      // Input B&W Styling
-                      className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-black text-black"
+                      className="w-full pl-12 pr-4 py-3.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900 transition-all"
                       placeholder="+62 812 3456 7890"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-black mb-2 uppercase">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Password
                   </label>
                   <div className="relative">
@@ -872,14 +946,13 @@ export default function LoginPage() {
                           password: e.target.value,
                         }))
                       }
-                      // Input B&W Styling
-                      className="w-full pl-12 pr-12 py-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-black text-black"
-                      placeholder="Minimum 8 characters"
+                      className="w-full pl-12 pr-12 py-3.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900 transition-all"
+                      placeholder="Minimal 8 karakter"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword((v) => !v)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-green-600 transition-colors"
                     >
                       {showPassword ? (
                         <EyeOff className="w-5 h-5" />
@@ -891,8 +964,8 @@ export default function LoginPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-black mb-2 uppercase">
-                    Confirm Password
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Konfirmasi Password
                   </label>
                   <div className="relative">
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -905,14 +978,13 @@ export default function LoginPage() {
                           confirmPassword: e.target.value,
                         }))
                       }
-                      // Input B&W Styling
-                      className="w-full pl-12 pr-12 py-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-black text-black"
-                      placeholder="Repeat password"
+                      className="w-full pl-12 pr-12 py-3.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-gray-900 transition-all"
+                      placeholder="Ulangi password"
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword((v) => !v)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-black"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-green-600 transition-colors"
                     >
                       {showConfirmPassword ? (
                         <EyeOff className="w-5 h-5" />
@@ -923,7 +995,7 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                <div className="flex items-start">
+                <div className="flex items-start gap-3">
                   <input
                     type="checkbox"
                     id="terms"
@@ -934,23 +1006,22 @@ export default function LoginPage() {
                         agreeToTerms: e.target.checked,
                       }))
                     }
-                    // Checkbox B&W Styling
-                    className="w-4 h-4 text-black border-gray-300 rounded focus:ring-black mt-1"
+                    className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500 mt-1 flex-shrink-0"
                   />
-                  <label htmlFor="terms" className="ml-3 text-sm text-gray-700">
-                    I agree to the{" "}
+                  <label htmlFor="terms" className="text-sm text-gray-700">
+                    Saya setuju dengan{" "}
                     <a
                       href="/terms"
-                      className="text-black hover:underline font-semibold"
+                      className="text-green-600 hover:text-green-700 font-semibold hover:underline"
                     >
-                      Terms & Conditions
+                      Syarat & Ketentuan
                     </a>{" "}
-                    and{" "}
+                    dan{" "}
                     <a
                       href="/privacy"
-                      className="text-black hover:underline font-semibold"
+                      className="text-green-600 hover:text-green-700 font-semibold hover:underline"
                     >
-                      Privacy Policy
+                      Kebijakan Privasi
                     </a>
                   </label>
                 </div>
@@ -958,58 +1029,54 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={isRegistering}
-                  // Button Primary B&W
-                  className={clsx(
-                    "w-full text-white py-4 rounded-lg font-bold hover:bg-gray-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 uppercase tracking-wider",
-                    accentBg
-                  )}
+                  className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-3.5 rounded-xl font-semibold hover:from-green-700 hover:to-green-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-green-500/30"
                 >
                   {isRegistering ? (
                     <>
                       <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Processing...
+                      Memproses...
                     </>
                   ) : (
                     <>
-                      Sign Up Now
+                      Daftar Sekarang
                       <ArrowRight className="w-5 h-5" />
                     </>
                   )}
                 </button>
-              </form>
+              </motion.form>
             )}
 
-            <div className="mt-8 text-center">
-              <p className="text-gray-700">
-                {isLogin ? "New client?" : "Already have an account?"}{" "}
+            <div className="mt-6 text-center">
+              <p className="text-gray-600 text-sm">
+                {isLogin ? "Belum punya akun?" : "Sudah punya akun?"}{" "}
                 <button
                   onClick={() => {
                     setIsLogin((v) => !v);
                     setErrors([]);
                     setSuccessMsg(null);
                   }}
-                  className="text-black font-semibold hover:underline"
+                  className="text-green-600 font-semibold hover:text-green-700 hover:underline"
                 >
-                  {isLogin ? "Register here" : "Sign in here"}
+                  {isLogin ? "Daftar di sini" : "Masuk di sini"}
                 </button>
               </p>
             </div>
 
             <div className="mt-8 pt-6 border-t border-gray-200">
               <div className="flex items-center justify-center gap-6 text-sm text-gray-600">
-                <div className="flex items-center gap-1">
-                  <Shield className="w-4 h-4 text-black" />
-                  <span>SSL Secure</span>
+                <div className="flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-green-600" />
+                  <span>SSL Aman</span>
                 </div>
-                <div className="flex items-center gap-1">
-                  <CheckCircle className="w-4 h-4 text-black" />
-                  <span>Data Protection</span>
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-600" />
+                  <span>Data Terlindungi</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

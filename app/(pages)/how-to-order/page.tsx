@@ -126,7 +126,7 @@ function HowToOrderContent() {
   const [texts, setTexts] = useState({
     heroBadge: "Ordering Guide",
     heroTitle1: "How To Order From",
-    heroTitle2: "BLACKBOX.INC",
+    heroTitle2: "HerbalCare",
     heroSubtitle:
       "Follow our 6 simple steps to successfully purchase your exclusive fashion items. Secure, straightforward, and fast!",
 
@@ -284,12 +284,12 @@ function HowToOrderContent() {
       id: 6,
       title: "Terima & Beri Ulasan",
       description:
-        "Paket BLACKBOX.INC tiba! Nikmati produk Anda dan bantu kami dengan memberikan ulasan.",
+        "Paket HerbalCare tiba! Nikmati produk Anda dan bantu kami dengan memberikan ulasan.",
       details: [
         "Periksa kondisi paket saat diterima",
         "Jika ada masalah, hubungi CS segera (sertakan video unboxing)",
         "Login dan berikan review produk untuk mendapatkan loyalty points",
-        "Tingkatkan gaya Anda dengan item BLACKBOX.INC yang baru!",
+        "Tingkatkan gaya Anda dengan item HerbalCare yang baru!",
       ],
       icon: <Truck className="w-8 h-8" />,
       image: "images/new/order-steps/step-6.png",

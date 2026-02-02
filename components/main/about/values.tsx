@@ -42,7 +42,7 @@ export default function Values() {
         >
           <h2 className="text-4xl lg:text-5xl font-bold text-[#6B6B6B] mb-6">
             Nilai Utama{" "}
-            <span className="text-[#E53935]">BLACKBOX.INC Shop</span>
+            <span className="text-[#E53935]">HerbalCare Shop</span>
           </h2>
           <p className="text-xl text-[#6B6B6B] max-w-3xl mx-auto">
             Prinsip yang selalu kami pegang dalam menciptakan Shop berkualitas

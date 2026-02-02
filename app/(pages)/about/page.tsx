@@ -266,7 +266,7 @@ export default function AboutPage() {
             </div>
             <div className="pointer-events-none absolute inset-0 rounded-3xl ring-1 ring-black/5" />
             <div className="absolute -left-3 -top-3 rounded-full border border-gray-200 bg-white px-3 py-1 text-[10px] text-gray-700">
-              BLACKBOX.INC · Story
+              HerbalCare · Story
             </div>
           </motion.div>
         </motion.div>

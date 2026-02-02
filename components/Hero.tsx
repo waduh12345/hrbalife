@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import Image from 'next/image'
-import { ShieldCheck, Leaf, FlaskConical, Users } from 'lucide-react'
+import { ShieldCheck, Leaf, FlaskConical, Users, Star, ArrowRight, Sparkles } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 gsap.registerPlugin(ScrollTrigger)
@@ -94,85 +94,102 @@ export default function Hero() {
   return (
     <section
       ref={heroRef}
-      className="relative overflow-hidden bg-gradient-to-br from-[#F9FBFA] via-white to-[#EEF5F0]"
+      className="relative overflow-hidden bg-gradient-to-br from-green-50 via-white to-green-50/30"
     >
-      <div className="grid grid-cols-2 gap-16 py-28 max-w-7xl mx-auto px-8 relative z-10">
+      {/* Decorative Elements */}
+      <div className="absolute top-20 right-10 w-72 h-72 bg-green-200 rounded-full blur-3xl opacity-20 animate-pulse"></div>
+      <div className="absolute bottom-20 left-10 w-96 h-96 bg-green-300 rounded-full blur-3xl opacity-10"></div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 py-12 md:py-20 lg:py-28 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* LEFT CONTENT */}
-        <div>
-          <h1 className="text-5xl font-semibold leading-tight text-primary">
+        <div className="flex flex-col justify-center">
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 bg-green-100 text-green-700 px-4 py-2 rounded-full w-fit mb-6 shadow-sm">
+            <Sparkles className="w-4 h-4" />
+            <span className="text-sm font-medium">Terpercaya Sejak 2020</span>
+          </div>
+
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight text-gray-900 mb-6">
             Hidup Sehat Alami
-            <br /> dengan Herbal Care
+            <br />
+            <span className="text-green-600">dengan HerbalCare</span>
           </h1>
 
-          <p className="mt-6 text-lg text-gray-600">
-            Produk herbal berkualitas tinggi untuk mendukung gaya hidup sehat Anda.
+          <p className="text-base sm:text-lg lg:text-xl text-gray-600 mb-4 leading-relaxed">
+            Produk herbal berkualitas tinggi yang diformulasikan khusus untuk mendukung gaya hidup sehat Anda dan keluarga.
           </p>
 
-          {/* CTA */}
-          <div className="mt-8 flex items-center gap-4">
-            <button className="bg-accent text-white px-8 py-4 rounded-full shadow-soft hover:opacity-90 transition">
-              Belanja Sekarang
+          <p className="text-sm sm:text-base text-gray-500 mb-8 leading-relaxed">
+            Kami menghadirkan solusi kesehatan alami dari bahan-bahan pilihan terbaik, diproses dengan teknologi modern dan standar internasional. Setiap produk dirancang untuk memberikan manfaat maksimal bagi kesehatan tubuh Anda secara menyeluruh.
+          </p>
+
+          {/* Stats Bar */}
+          <div className="flex flex-wrap items-center gap-4 sm:gap-6 mb-8 pb-6 border-b border-gray-200">
+            <div className="flex items-center gap-2">
+              <div className="flex">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                ))}
+              </div>
+              <span className="text-sm font-semibold text-gray-700">4.9/5.0</span>
+            </div>
+            <div className="h-4 w-px bg-gray-300"></div>
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Users className="w-4 h-4 text-green-600" />
+              <span>
+                <span ref={counterRef} className="font-bold text-green-600">0</span>
+                <span className="text-gray-500">+ Pelanggan Puas</span>
+              </span>
+            </div>
+          </div>
+
+          {/* CTA Buttons */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mb-10">
+            <button 
+              onClick={() => router.push('/product')}
+              className="bg-green-600 text-white px-8 py-4 rounded-xl font-semibold shadow-lg hover:bg-green-700 hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 group"
+            >
+              <span>Belanja Sekarang</span>
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
 
             <button
-              className="border border-primary text-primary px-8 py-4 rounded-full hover:bg-primary hover:text-white transition"
+              className="border-2 border-green-600 text-green-600 px-8 py-4 rounded-xl font-semibold hover:bg-green-600 hover:text-white transition-all duration-300"
               onClick={() => router.push('/reseller')}
             >
               Daftar Reseller
             </button>
           </div>
 
-          {/* COUNTER */}
-          <div className="mt-8 flex items-center gap-3 text-sm text-gray-600">
-            <Users size={18} className="text-primary" />
-            <span>
-              Dipercaya oleh{' '}
-              <span
-                ref={counterRef}
-                className="font-semibold text-primary"
-              >
-                0
-              </span>
-              + pelanggan
-            </span>
-          </div>
-
-          {/* TRUST TAGLINES */}
-          <div
-            ref={trustRef}
-            className="mt-10 grid grid-cols-3 gap-6"
-          >
-            <TrustItem
-              icon={<Leaf size={20} />}
-              title="100% Alami"
-              desc="Bahan herbal pilihan tanpa bahan kimia berbahaya"
-            />
-            <TrustItem
-              icon={<FlaskConical size={20} />}
-              title="Teruji Klinis"
-              desc="Diproses dengan standar kualitas tinggi"
-            />
-            <TrustItem
-              icon={<ShieldCheck size={20} />}
-              title="Aman & Bersertifikat"
-              desc="BPOM, Halal, dan Organik"
-            />
-          </div>
         </div>
 
-        {/* RIGHT IMAGE */}
-        <div
-          ref={imageRef}
-          className="rounded-3xl bg-gray-100 shadow-soft overflow-hidden"
-        >
-          <Image
-            src="/hero.png"
-            alt="Hero Image"
-            width={600}
-            height={400}
-            className="w-full h-full object-cover"
-            priority
-          />
+        {/* RIGHT IMAGE - Mobile Responsive */}
+        <div className="flex items-center justify-center lg:justify-end order-first lg:order-last">
+          <div
+            ref={imageRef}
+            className="relative w-full max-w-lg lg:max-w-none rounded-3xl bg-gradient-to-br from-green-100 to-green-50 shadow-2xl overflow-hidden"
+          >
+            <div className="aspect-square lg:aspect-[5/5] relative">
+              <Image
+                src="/hero.png"
+                alt="HerbalCare Products"
+                fill
+                className="object-cover"
+                priority
+              />
+              {/* Decorative gradient overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-green-900/10 to-transparent"></div>
+            </div>
+
+            {/* Floating Badge */}
+            <div className="absolute top-6 right-6 bg-white rounded-2xl shadow-xl p-4 backdrop-blur-sm bg-opacity-95">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-xs font-semibold text-gray-600">100% Organic</span>
+              </div>
+              <p className="text-xl font-bold text-green-600">BPOM Certified</p>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -180,7 +197,7 @@ export default function Hero() {
 }
 
 /* =====================
-   Trust Item (Hover Micro)
+   Trust Item (Modern Card Style)
 ===================== */
 function TrustItem({
   icon,
@@ -192,15 +209,15 @@ function TrustItem({
   desc: string
 }) {
   return (
-    <div className="flex gap-3 group cursor-default">
-      <div className="text-primary mt-1 transition-transform duration-300 group-hover:scale-110">
+    <div className="flex gap-3 sm:flex-col sm:gap-3 p-4 sm:p-5 rounded-2xl bg-white shadow-sm border border-gray-100 group hover:shadow-lg hover:border-green-200 transition-all duration-300 cursor-default">
+      <div className="flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-xl bg-green-100 text-green-600 transition-all duration-300 group-hover:bg-green-600 group-hover:text-white group-hover:scale-110">
         {icon}
       </div>
-      <div>
-        <p className="text-sm font-semibold group-hover:text-primary transition">
+      <div className="flex-1">
+        <p className="text-sm sm:text-base font-bold text-gray-900 mb-1 group-hover:text-green-600 transition-colors">
           {title}
         </p>
-        <p className="text-xs text-gray-500 leading-relaxed">
+        <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
           {desc}
         </p>
       </div>
